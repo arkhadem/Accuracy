@@ -33,8 +33,8 @@
 #define DEBUG_DEF 0
 #define RESULT_SHOW 1
 
-#define FRACTION_LEN 7
-#define INTEGER_LEN 0
+#define FRACTION_LEN 9
+#define INTEGER_LEN 10
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -54,9 +54,9 @@ int random_gen(){
     return lfsr;
 }
 
-int relu_af(int in_af){
-	if(in_af < 0)
-		return 0;
+double relu_af(double in_af){
+	if(in_af < 0.00000000)
+		return 0.00000000;
 
 	return in_af;
 }
@@ -99,7 +99,16 @@ void read_cnn_inputs(unsigned char inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEA
     }
 }
 
+double quantization(double input){
+    double sign;
+    sign = input < 0 ? -1.000000000 : 1.000000000;
+    input = input * sign;
+    return ((double)( (int)(input * pow(2, FRACTION_LEN)) & (int)(pow(2, FRACTION_LEN + INTEGER_LEN) - 1) ) / pow(2, FRACTION_LEN)) * sign;
+}
+
 void read_cnn_weights(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
+    double temp;
+    
     FILE *fp_weight = fopen(weight_file, "rb");
     FILE *fp_bias = fopen(bias_file, "rb");
     if (fp_weight == NULL || fp_bias == NULL){
@@ -107,11 +116,13 @@ void read_cnn_weights(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][
         exit(-1);
     }
     for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
-        fscanf(fp_bias, "%lf\n", &(biasses[o_ch_itr]));
+        fscanf(fp_bias, "%lf\n", &temp);
+        biasses[o_ch_itr] = quantization(temp);
         for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
             for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                 for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                    fscanf(fp_weight, "%lf", &(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
+                    fscanf(fp_weight, "%lf", &temp);
+                    weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr] = quantization(temp);
                 }
             }
         }
@@ -124,35 +135,21 @@ void fc_layer(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[M
 	for (int i = 0; i < output_num; i++) {
 		outputs[i] = biasses[i];
 		for (int j = 0; j < input_num; j++) {
-			outputs[i] += weights[i][j] * inputs[j];
+			outputs[i] = quantization(outputs[i] + quantization(weights[i][j] * inputs[j]));
 		}
         switch (af_num) {
             case RELU_AF:
-                outputs[i] = (double)relu_af(outputs[i]);
+                outputs[i] = quantization((double)relu_af(outputs[i]));
                 break;
             case TANH_AF:
-                outputs[i] = (double)tanh(outputs[i]);
+                outputs[i] = quantization((double)tanh(outputs[i]));
                 break;
         }
 	}
 }
 
-void fc_input_generator(double inputs[MAX_FEATURE_NUM], int input_num){
-    for (int i = 0; i < input_num; i++) {
-        inputs[i] = (random_gen() % 100) - 50;
-    }
-}
-
-void fc_weight_generator(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[MAX_FEATURE_NUM], int input_num, int output_num){
-    for (int i = 0; i < output_num; i++) {
-        biasses[i] = (random_gen() % 10) - 5;
-        for (int j = 0; j < input_num; j++) {
-            weights[i][j] = (random_gen() % 100) - 50;
-        }
-    }
-}
-
 void read_fc_weights(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[MAX_FEATURE_NUM], int input_num, int output_num, char* weight_file, char* bias_file){
+    double temp;
     FILE *fp_weight = fopen(weight_file, "rb");
     FILE *fp_bias = fopen(bias_file, "rb");
     if (fp_weight == NULL || fp_bias == NULL){
@@ -160,9 +157,11 @@ void read_fc_weights(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double bi
         exit(-1);
     }
     for (int i = 0; i < output_num; i++) {
-        fscanf(fp_bias, "%lf\n", &(biasses[i]));
+        fscanf(fp_bias, "%lf\n", &temp);
+        biasses[i] = quantization(temp);
         for (int j = 0; j < input_num; j++) {
-            fscanf(fp_weight, "%lf", &(weights[i][j]));
+            fscanf(fp_weight, "%lf", &temp);
+            weights[i][j] = quantization(temp);
         }
     }
 	fclose(fp_weight);
@@ -180,6 +179,7 @@ int fc_soft_max(double features[MAX_FEATURE_NUM], int feature_num){
 
 void cnn_layer(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], double inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], double outputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int input_channel, int output_channel, int input_size, int kernel_size, int stride, int zero_pad, int af_num){
     int output_size = ((input_size + (2 * zero_pad) - kernel_size) / stride) + 1;
+    double temp;
     for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
         for (int o_r_itr = 0; o_r_itr < output_size; o_r_itr++) {
             for (int o_c_itr = 0; o_c_itr < output_size; o_c_itr++) {
@@ -187,16 +187,21 @@ void cnn_layer(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KER
         		for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
                     for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                         for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                            outputs[o_ch_itr][o_r_itr][o_c_itr] += (((stride*o_r_itr)+k_r_itr-zero_pad) < 0) || (((stride*o_c_itr)+k_c_itr-zero_pad) < 0) || (((stride*o_r_itr)+k_r_itr-zero_pad) >= input_size) || (((stride*o_c_itr)+k_c_itr-zero_pad) >= input_size) ? 0 : inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad] * weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr];
+                            if((((stride*o_r_itr)+k_r_itr-zero_pad) < 0) || (((stride*o_c_itr)+k_c_itr-zero_pad) < 0) || (((stride*o_r_itr)+k_r_itr-zero_pad) >= input_size) || (((stride*o_c_itr)+k_c_itr-zero_pad) >= input_size)){
+                                temp = 0.00000000;
+                            } else {
+                                temp = quantization(inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad] * weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]);
+                            }
+                            outputs[o_ch_itr][o_r_itr][o_c_itr] = quantization(temp + outputs[o_ch_itr][o_r_itr][o_c_itr]);
                 		}
                     }
         		}
                 switch (af_num) {
                     case RELU_AF:
-                        outputs[o_ch_itr][o_r_itr][o_c_itr] = (double)relu_af(outputs[o_ch_itr][o_r_itr][o_c_itr]);
+                        outputs[o_ch_itr][o_r_itr][o_c_itr] = quantization((double)relu_af(outputs[o_ch_itr][o_r_itr][o_c_itr]));
                         break;
                     case TANH_AF:
-                        outputs[o_ch_itr][o_r_itr][o_c_itr] = (double)tanh(outputs[o_ch_itr][o_r_itr][o_c_itr]);
+                        outputs[o_ch_itr][o_r_itr][o_c_itr] = quantization((double)tanh(outputs[o_ch_itr][o_r_itr][o_c_itr]));
                         break;
                 }
     		}
@@ -226,42 +231,19 @@ void cnn_pool(double inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], do
                                 outputs[ch_itr][o_r_itr][o_c_itr] = (outputs[ch_itr][o_r_itr][o_c_itr] < new_candidate) ? new_candidate : outputs[ch_itr][o_r_itr][o_c_itr];
                                 break;
                             case MEAN_POOL:
-                                outputs[ch_itr][o_r_itr][o_c_itr] += new_candidate;
+                                outputs[ch_itr][o_r_itr][o_c_itr] = quantization(new_candidate + outputs[ch_itr][o_r_itr][o_c_itr]);
                                 break;
                         }
                     }
         		}
                 switch (pool_num) {
                     case MEAN_POOL:
-                        outputs[ch_itr][o_r_itr][o_c_itr] /= (double)(kernel_size * kernel_size);
+                        outputs[ch_itr][o_r_itr][o_c_itr] = quantization(outputs[ch_itr][o_r_itr][o_c_itr] / (double)(kernel_size * kernel_size));
                         break;
                 }
     		}
 		}
 	}
-}
-
-void cnn_input_generator(double inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int input_channel, int input_size){
-    for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
-        for (int i_r_itr = 0; i_r_itr < input_size; i_r_itr++) {
-            for (int i_c_itr = 0; i_c_itr < input_size; i_c_itr++) {
-                inputs[i_ch_itr][i_r_itr][i_c_itr] = (random_gen() % 100) - 50;
-            }
-        }
-    }
-}
-
-void cnn_weight_generator(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size){
-    for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
-        biasses[o_ch_itr] = (random_gen() % 10) - 5;
-        for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
-            for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
-                for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                    weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr] = (random_gen() % 100) - 50;
-                }
-            }
-        }
-    }
 }
 
 
@@ -386,7 +368,11 @@ void LeNet(){
         for (int a = 0; a < cnn_input_channel; a++) {
             for (int b = 0; b < cnn_input_size; b++) {
                 for (int c = 0; c < cnn_input_size; c++) {
-                    cnn_inputs[a][b][c] = (double)(input_images[a][b][c]/2);
+                    if(FRACTION_LEN < 8){
+                        cnn_inputs[a][b][c] = ((double)(input_images[a][b][c]/pow(2, 8 - FRACTION_LEN))/pow(2, FRACTION_LEN));
+                    } else {
+                        cnn_inputs[a][b][c] = ((double)input_images[a][b][c]/256.00000000);
+                    }
                 }
             }
         }
@@ -514,8 +500,15 @@ void LeNet(){
         result_index = fc_soft_max(fc_outputs, fc_output_num);
         expected_index = input_labels[itr];
 
-#if(RESULT_SHOW == 1)
+#if(DEBUG_DEF == 1)
         printf("itr: %d, expected: %d, result: %d\n", itr, expected_index, result_index);
+#endif
+
+#if(RESULT_SHOW == 1)
+        if(itr % 10 == 0){
+            printf("\r%d%% completed!", itr/10);
+            fflush(stdout);
+        }
 #endif
 
         if(result_index == expected_index){
