@@ -511,8 +511,15 @@ void LeNet(){
         result_index = fc_soft_max(fc_outputs, fc_output_num);
         expected_index = input_labels[itr];
 
-#if(RESULT_SHOW == 1)
+#if(DEBUG_DEF == 1)
         printf("itr: %d, expected: %d, result: %d\n", itr, expected_index, result_index);
+#endif
+
+#if(RESULT_SHOW == 1)
+        if(itr % 10 == 0){
+            printf("\r%d%% completed!", itr/10);
+            fflush(stdout);
+        }
 #endif
 
         if(result_index == expected_index){
