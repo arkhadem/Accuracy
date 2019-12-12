@@ -386,7 +386,7 @@ void LeNet(){
         for (int a = 0; a < cnn_input_channel; a++) {
             for (int b = 0; b < cnn_input_size; b++) {
                 for (int c = 0; c < cnn_input_size; c++) {
-                    cnn_inputs[a][b][c] = ((double)input_images[a][b][c])/2.000000;
+                    cnn_inputs[a][b][c] = (double)(input_images[a][b][c]/2);
                 }
             }
         }
