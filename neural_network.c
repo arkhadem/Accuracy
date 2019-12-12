@@ -33,6 +33,9 @@
 #define DEBUG_DEF 0
 #define RESULT_SHOW 1
 
+#define FRACTION_LEN 7
+#define INTEGER_LEN 0
+
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
 char s[16+1];
@@ -383,7 +386,7 @@ void LeNet(){
         for (int a = 0; a < cnn_input_channel; a++) {
             for (int b = 0; b < cnn_input_size; b++) {
                 for (int c = 0; c < cnn_input_size; c++) {
-                    cnn_inputs[a][b][c] = (double)input_images[a][b][c];
+                    cnn_inputs[a][b][c] = ((double)input_images[a][b][c])/2.000000;
                 }
             }
         }
