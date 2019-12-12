@@ -33,7 +33,7 @@
 #define DEBUG_DEF 0
 #define RESULT_SHOW 1
 
-uint16_t lfsr = 0xACE1u;
+u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
 char s[16+1];
 
