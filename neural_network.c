@@ -1,23 +1,22 @@
-#include "myheader.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
-#define IMAGE_ADDRESS ""
-#define LABEL_ADDRESS ""
+#define IMAGE_ADDRESS "MNIST_dataset/t10k-images-idx3-ubyte"
+#define LABEL_ADDRESS "MNIST_dataset/t10k-labels-idx1-ubyte"
 
-#define CONV1_WEIGHT_ADDRESS
-#define CONV1_BIAS_ADDRESS
-#define CONV2_WEIGHT_ADDRESS
-#define CONV2_BIAS_ADDRESS
-#define CONV3_WEIGHT_ADDRESS
-#define CONV3_BIAS_ADDRESS
-#define FC1_WEIGHT_ADDRESS
-#define FC1_BIAS_ADDRESS
+#define CONV1_WEIGHT_ADDRESS "LeNet5_data/conv1_weights.txt"
+#define CONV1_BIAS_ADDRESS "LeNet5_data/conv1_biasses.txt"
+#define CONV2_WEIGHT_ADDRESS "LeNet5_data/conv2_weights.txt"
+#define CONV2_BIAS_ADDRESS "LeNet5_data/conv2_biasses.txt"
+#define CONV3_WEIGHT_ADDRESS "LeNet5_data/conv3_weights.txt"
+#define CONV3_BIAS_ADDRESS "LeNet5_data/conv3_biasses.txt"
+#define FC1_WEIGHT_ADDRESS "LeNet5_data/fc1_weights.txt"
+#define FC1_BIAS_ADDRESS "LeNet5_data/fc1_biasses.txt"
 
 #define MAX_TEST_SAMPLES 1000
 
-#define MAX_CHANNEL 50
+#define MAX_CHANNEL 120
 #define MAX_KERNEL_SIZE 5
 #define MAX_FEATURE_SIZE 28
 
@@ -29,11 +28,17 @@
 #define MEAN_POOL 1
 
 
-#define MAX_FEATURE_NUM 800
+#define MAX_FEATURE_NUM 120
+
+#define DEBUG_DEF 0
+#define RESULT_SHOW 1
 
 uint16_t lfsr = 0xACE1u;
 unsigned period = 0;
 char s[16+1];
+
+FILE *fp_image;
+int input_opened;
 
 int random_gen(){
     unsigned lsb = lfsr & 1;
@@ -53,53 +58,63 @@ int relu_af(int in_af){
 	return in_af;
 }
 
-void read_cnn_inputs(unsigned char inputs[MAX_TEST_SAMPLES][MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file){
-    FILE *fp_image = fopen(image_file, rb");
-    FILE *fp_label = fopen(label_file, "rb");
-    if (fp_image == NULL || fp_label == NULL){
-        printf("ERROR. %s or %s doesn't exist\n", image_file, label_file);
-        exit();
+void reset_cal(){
+    input_opened = 0;
+    if(fp_image != NULL)
+        fclose(fp_image);
+}
+
+void read_cnn_inputs(unsigned char inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file){
+    unsigned char temp;
+    if(input_opened == 0){
+        fp_image = fopen(image_file, "rb");
+        FILE *fp_label = fopen(label_file, "rb");
+        if (fp_image == NULL || fp_label == NULL){
+            printf("ERROR. %s or %s doesn't exist\n", image_file, label_file);
+            exit(-1);
+        }
+    	fseek(fp_image, 16, SEEK_SET);
+    	fseek(fp_label, 8, SEEK_SET);
+        for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
+            for (int i_r_itr = 0; i_r_itr < input_size; i_r_itr++) {
+                for (int i_c_itr = 0; i_c_itr < input_size; i_c_itr++) {
+                    fread(&(inputs[i_ch_itr][i_r_itr][i_c_itr]), 1, 1, fp_image);
+                }
+            }
+        }
+        fread(label, num_of_samples, 1, fp_label);
+    	fclose(fp_label);
+        input_opened = 1;
+    } else {
+        for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
+            for (int i_r_itr = 0; i_r_itr < input_size; i_r_itr++) {
+                for (int i_c_itr = 0; i_c_itr < input_size; i_c_itr++) {
+                    fread(&(inputs[i_ch_itr][i_r_itr][i_c_itr]), 1, 1, fp_image);
+                }
+            }
+        }
     }
-	fseek(fp_image, 16, SEEK_SET);
-	fseek(fp_label, 8, SEEK_SET);
-	fread(inputs, num_of_samples * input_channel * input_size * input_size, 1, fp_image);
-	fread(label, num_of_samples, 1, fp_label);
-	fclose(fp_image);
-	fclose(fp_label);
 }
 
 void read_cnn_weights(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
-    FILE *fp_weight = fopen(weight_file, rb");
+    FILE *fp_weight = fopen(weight_file, "rb");
     FILE *fp_bias = fopen(bias_file, "rb");
     if (fp_weight == NULL || fp_bias == NULL){
-        printf("ERROR. %s or %s doesn't exist\n", fp_weight, fp_bias);
-        exit();
+        printf("ERROR. %s or %s doesn't exist\n", weight_file, bias_file);
+        exit(-1);
     }
     for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
         fscanf(fp_bias, "%lf\n", &(biasses[o_ch_itr]));
         for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
             for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                 for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                    fscanf(fp_weight, "%lf", &(biasses[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
+                    fscanf(fp_weight, "%lf", &(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
                 }
             }
         }
     }
 	fclose(fp_weight);
 	fclose(fp_bias);
-}
-
-void cnn_weight_generator(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size){
-    for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
-        biasses[o_ch_itr] = (random_gen() % 10) - 5;
-        for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
-            for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
-                for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                    weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr] = (random_gen() % 100) - 50;
-                }
-            }
-        }
-    }
 }
 
 void fc_layer(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[MAX_FEATURE_NUM], double inputs[MAX_FEATURE_NUM], double outputs[MAX_FEATURE_NUM], int input_num, int output_num, int af_num){
@@ -135,11 +150,11 @@ void fc_weight_generator(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], doubl
 }
 
 void read_fc_weights(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[MAX_FEATURE_NUM], int input_num, int output_num, char* weight_file, char* bias_file){
-    FILE *fp_weight = fopen(weight_file, rb");
+    FILE *fp_weight = fopen(weight_file, "rb");
     FILE *fp_bias = fopen(bias_file, "rb");
     if (fp_weight == NULL || fp_bias == NULL){
-        printf("ERROR. %s or %s doesn't exist\n", fp_weight, fp_bias);
-        exit();
+        printf("ERROR. %s or %s doesn't exist\n", weight_file, bias_file);
+        exit(-1);
     }
     for (int i = 0; i < output_num; i++) {
         fscanf(fp_bias, "%lf\n", &(biasses[i]));
@@ -169,9 +184,9 @@ void cnn_layer(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KER
         		for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
                     for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                         for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                            outputs[o_ch_itr][o_r_itr][o_c_itr] += inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr][(stride*o_c_itr)+k_c_itr] * weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr];
+                            outputs[o_ch_itr][o_r_itr][o_c_itr] += (((stride*o_r_itr)+k_r_itr-zero_pad) < 0) || (((stride*o_c_itr)+k_c_itr-zero_pad) < 0) || (((stride*o_r_itr)+k_r_itr-zero_pad) >= input_size) || (((stride*o_c_itr)+k_c_itr-zero_pad) >= input_size) ? 0 : inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad] * weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr];
                 		}
-            		}
+                    }
         		}
                 switch (af_num) {
                     case RELU_AF:
@@ -315,6 +330,7 @@ void cnn_to_fc(double cnn_feature[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZ
 }
 
 void LeNet(){
+
     double fc_weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM];
     double fc_biasses[MAX_FEATURE_NUM];
     double fc_inputs[MAX_FEATURE_NUM];
@@ -322,7 +338,7 @@ void LeNet(){
     int fc_input_num;
     int fc_output_num;
 
-    unsigned char input_images[MAX_TEST_SAMPLES][MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE];
+    unsigned char input_images[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE];
     unsigned char input_labels[MAX_TEST_SAMPLES];
 
     double cnn_weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE];
@@ -342,26 +358,32 @@ void LeNet(){
     int result_index;
     int expected_index;
 
-    int accuracy = 0;
-    int num_of_tests = 1000;
+    int accuracy;
+    int num_of_tests;
 
-    read_cnn_inputs(input_images, input_labels, cnn_input_channel, cnn_input_size, num_of_tests, IMAGE_ADDRESS, LABEL_ADDRESS);
+    accuracy = 0;
+    num_of_tests = 1000;
+
+    reset_cal();
 
     for (int itr = 0; itr < num_of_tests; itr++) {
+
         //layer 1
         cnn_output_channel = 6;
         cnn_input_channel = 1;
-        cnn_input_size = 32;
+        cnn_input_size = 28;
         cnn_output_size = 28;
         cnn_kernel_size = 5;
         cnn_stride = 1;
-        cnn_zero_padd = 0;
+        cnn_zero_padd = 2;
         cnn_af_type = RELU_AF;
+
+        read_cnn_inputs(input_images, input_labels, cnn_input_channel, cnn_input_size, num_of_tests, IMAGE_ADDRESS, LABEL_ADDRESS);
 
         for (int a = 0; a < cnn_input_channel; a++) {
             for (int b = 0; b < cnn_input_size; b++) {
                 for (int c = 0; c < cnn_input_size; c++) {
-                    cnn_inputs[a][b][c] = (double)input_images[itr][a][b][c];
+                    cnn_inputs[a][b][c] = (double)input_images[a][b][c];
                 }
             }
         }
@@ -502,5 +524,13 @@ void LeNet(){
 #if(RESULT_SHOW == 1)
     printf("accuracy: %d/%d\n", accuracy, num_of_tests);
 #endif
+    reset_cal();
 
+}
+
+int main(){
+
+    LeNet();
+
+    return 0;
 }
