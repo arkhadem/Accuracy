@@ -35,7 +35,7 @@
 
 #define FRACTION_LEN 6
 #define INTEGER_LEN 2
-#define ESL_LEN 256
+#define ESL_LEN 512
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -112,11 +112,13 @@ int random_gen(){
 //     return ((double)( (int)(input * pow(2, FRACTION_LEN)) & (int)(pow(2, FRACTION_LEN + INTEGER_LEN) - 1) ) / pow(2, FRACTION_LEN)) * sign;
 // }
 
+
+
 ESL_num multiplier(ESL_num first, ESL_num second) {
     ESL_num result;
     for (int i = 0; i < ESL_LEN; ++i) {
-        result.X[i] = ((first.X[i] == 0) && (second.X[i] == 0)) ? 1 : 0;
-        result.Y[i] = ((first.Y[i] == 0) && (second.Y[i] == 0)) ? 1 : 0;
+        result.X[i] = ((first.X[i] + second.X[i]) % 2) ? 0 : 1;
+        result.Y[i] = ((first.Y[i] + second.Y[i]) % 2) ? 0 : 1;
     }
     return result;
 }
@@ -166,11 +168,11 @@ ESL_num SNG(double input){
     ESL_num result;
     int num_of_ones = 0;
     for (int i = 0; i < ESL_LEN; ++i) {
-        result.X[i] = (((random_gen() % const_temp2) - const_temp1) < input_int) ? 1 : 0;
+        result.X[i] = ((random_gen() % const_temp2) < (input_int + const_temp1)) ? 1 : 0;
         num_of_ones += result.X[i];
         result.Y[i] = 1;
     }
-    printf("%d %lf\n", num_of_ones, ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
+    printf("%lf\n", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
     return result;
 }
 
@@ -598,35 +600,39 @@ double bipolar_stochastic_divider(ESL_num input){
 
 // }
 
+double ESL_to_double(ESL_num input){
+    int num_of_ones = 0;
+    for (int i = 0; i < ESL_LEN; ++i){
+        num_of_ones += input.X[i];
+    }
+    printf("%lf/", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
+
+    num_of_ones = 0;
+    for (int i = 0; i < ESL_LEN; ++i){
+        num_of_ones += input.Y[i];
+    }
+    printf("%lf", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
+}
+
 int main(){
 
-    int num_of_ones;
     double num_double = -0.25;
     ESL_num num_ESL;
     ESL_num answer;
 
     // printf("%lf == %lf\n", num_double, bipolar_stochastic_divider(SNG(num_double)));
 
-    SNG(0.5);
-    SNG(0.5);
-    SNG(0.5);
-    SNG(0.5);
-    SNG(0.5);
+    SNG(-0.5);
+    SNG(-0.5);
+    SNG(-0.5);
+    SNG(-0.5);
+    SNG(-0.5);
 
 
     answer = multiplier(SNG(0.5), SNG(0.5));
 
-    num_of_ones = 0;
-    for (int i = 0; i < ESL_LEN; ++i){
-        num_of_ones += answer.X[i];
-    }
-    printf("%d/", num_of_ones);
-
-    num_of_ones = 0;
-    for (int i = 0; i < ESL_LEN; ++i){
-        num_of_ones += answer.Y[i];
-    }
-    printf("%d\n", num_of_ones);
+    
+    printf("%lf\n", ESL_to_double(answer));
 
     return 0;
 }
