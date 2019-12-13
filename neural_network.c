@@ -33,8 +33,9 @@
 #define DEBUG_DEF 0
 #define RESULT_SHOW 1
 
-#define FRACTION_LEN 9
-#define INTEGER_LEN 10
+#define FRACTION_LEN 6
+#define INTEGER_LEN 2
+#define ESL_LEN 512
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -42,6 +43,11 @@ char s[16+1];
 
 FILE *fp_image;
 int input_opened;
+
+typedef struct ESL_num {
+    char X[ESL_LEN];
+    char Y[ESL_LEN];
+} ESL_num;
 
 int random_gen(){
     unsigned lsb = lfsr & 1;
@@ -106,6 +112,18 @@ double quantization(double input){
     return ((double)( (int)(input * pow(2, FRACTION_LEN)) & (int)(pow(2, FRACTION_LEN + INTEGER_LEN) - 1) ) / pow(2, FRACTION_LEN)) * sign;
 }
 
+ESL_num mac(ESL_num input, ESL_num weight, ESL_num initial){
+    ESL_num mult_res;
+    ESL_num result;
+    for (int i = 0; i < ESL_LEN; ++i) {
+        res.X[i] = ((weight.X[i] == 0) && (input.X[i] == 0)) = 1 : 0;
+        res.Y[i] = ((weight.Y[i] == 0) && (input.Y[i] == 0)) = 1 : 0;
+        result.X[i] = ((random_gen() % 2) == 0) ? ((res.X[i] == 0 && initial.Y[i] == 0) ? 1 : 0) : ((res.Y[i] == 0 && initial.X[i] == 0) ? 1 : 0);
+        result.Y[i] = (((random_gen() % 2) == 0) && (res.Y[i] == 0) && (initial.Y[i] == 0)) ? 1 : 0;
+    }
+    return result;
+}
+
 void read_cnn_weights(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
     double temp;
     
@@ -131,11 +149,11 @@ void read_cnn_weights(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][
 	fclose(fp_bias);
 }
 
-void fc_layer(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[MAX_FEATURE_NUM], double inputs[MAX_FEATURE_NUM], double outputs[MAX_FEATURE_NUM], int input_num, int output_num, int af_num){
+void fc_layer(ESL_num weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], ESL_num biasses[MAX_FEATURE_NUM], ESL_num inputs[MAX_FEATURE_NUM], ESL_num outputs[MAX_FEATURE_NUM], int input_num, int output_num, int af_num){
 	for (int i = 0; i < output_num; i++) {
 		outputs[i] = biasses[i];
 		for (int j = 0; j < input_num; j++) {
-			outputs[i] = quantization(outputs[i] + quantization(weights[i][j] * inputs[j]));
+            outputs[i] = mac(inputs[j], weights[i][j], outputs[i]);
 		}
         switch (af_num) {
             case RELU_AF:
