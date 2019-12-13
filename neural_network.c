@@ -170,7 +170,7 @@ ESL_num SNG(double input){
     for (int i = 0; i < ESL_LEN; ++i) {
         result.X[i] = ((random_gen() % const_temp2) < (input_int + const_temp1)) ? 1 : 0;
         num_of_ones += result.X[i];
-        result.Y[i] = 1;
+        result.Y[i] = ((random_gen() % const_temp2) < (pow(2, FRACTION_LEN) + const_temp1)) ? 1 : 0;
     }
     printf("%lf\n", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
     return result;
