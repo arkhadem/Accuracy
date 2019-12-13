@@ -33,8 +33,8 @@
 #define DEBUG_DEF 0
 #define RESULT_SHOW 1
 
-#define FRACTION_LEN 9
-#define INTEGER_LEN 10
+#define FRACTION_LEN 6
+#define INTEGER_LEN 2
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -106,6 +106,31 @@ double quantization(double input){
     return ((double)( (int)(input * pow(2, FRACTION_LEN)) & (int)(pow(2, FRACTION_LEN + INTEGER_LEN) - 1) ) / pow(2, FRACTION_LEN)) * sign;
 }
 
+double mac(double input, double weight, double initial){
+    int my_input, my_weight, my_initial;
+    int input_sign, weight_sign, initial_sign;
+    char selector[512] = {0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 6, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 7, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 6, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 8, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 6, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 7, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 6, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 9};
+    input_sign = input < 0 ? -1 : +1;
+    weight_sign = weight < 0 ? -1 : +1;
+    initial_sign = initial < 0 ? -1 : +1;
+    my_input = (input * pow(2, FRACTION_LEN)) * input_sign;
+    my_weight = (weight * pow(2, FRACTION_LEN)) * weight_sign;
+    my_initial = (initial * pow(2, FRACTION_LEN - INTEGER_LEN)) * initial_sign;
+    for (int i = 0; i < my_input; ++i) {
+        if(selector[i] == FRACTION_LEN + INTEGER_LEN){
+            printf("allaho akbar\n");
+            exit(-1);
+            break;
+        }
+        if(input_sign * weight_sign != initial_sign){
+            my_initial -= ((my_weight & (1 << (FRACTION_LEN + INTEGER_LEN - selector[i] - 1))) == 0) ? 0 : 1;
+        } else {
+            my_initial += ((my_weight & (1 << (FRACTION_LEN + INTEGER_LEN - selector[i] - 1))) == 0) ? 0 : 1;            
+        }
+    }
+    return quantization((double)((my_initial * initial_sign) / pow(2, FRACTION_LEN - INTEGER_LEN)));
+}
+
 void read_cnn_weights(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
     double temp;
     
@@ -135,7 +160,7 @@ void fc_layer(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[M
 	for (int i = 0; i < output_num; i++) {
 		outputs[i] = biasses[i];
 		for (int j = 0; j < input_num; j++) {
-			outputs[i] = quantization(outputs[i] + quantization(weights[i][j] * inputs[j]));
+            outputs[i] = mac(inputs[j], weights[i][j], outputs[i]);
 		}
         switch (af_num) {
             case RELU_AF:
@@ -187,12 +212,9 @@ void cnn_layer(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KER
         		for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
                     for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                         for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                            if((((stride*o_r_itr)+k_r_itr-zero_pad) < 0) || (((stride*o_c_itr)+k_c_itr-zero_pad) < 0) || (((stride*o_r_itr)+k_r_itr-zero_pad) >= input_size) || (((stride*o_c_itr)+k_c_itr-zero_pad) >= input_size)){
-                                temp = 0.00000000;
-                            } else {
-                                temp = quantization(inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad] * weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]);
+                            if(!((((stride*o_r_itr)+k_r_itr-zero_pad) < 0) || (((stride*o_c_itr)+k_c_itr-zero_pad) < 0) || (((stride*o_r_itr)+k_r_itr-zero_pad) >= input_size) || (((stride*o_c_itr)+k_c_itr-zero_pad) >= input_size))){
+                                outputs[o_ch_itr][o_r_itr][o_c_itr] = mac(inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad], weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr], outputs[o_ch_itr][o_r_itr][o_c_itr]);
                             }
-                            outputs[o_ch_itr][o_r_itr][o_c_itr] = quantization(temp + outputs[o_ch_itr][o_r_itr][o_c_itr]);
                 		}
                     }
         		}
