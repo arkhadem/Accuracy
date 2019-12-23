@@ -49,7 +49,7 @@ typedef struct ESL_num {
     char Y[ESL_LEN];
 } ESL_num;
 
-int random_gen(){
+int random_generator(){
     unsigned lsb = lfsr & 1;
 
     lfsr >>= 1;
@@ -112,22 +112,56 @@ int random_gen(){
 //     return ((double)( (int)(input * pow(2, FRACTION_LEN)) & (int)(pow(2, FRACTION_LEN + INTEGER_LEN) - 1) ) / pow(2, FRACTION_LEN)) * sign;
 // }
 
+double SNG_to_double(ESL_num input){
+    int num_of_ones_x = 0;
+    int num_of_ones_y = 0;
+    
+    double in_x_double, in_y_double;
+
+    for (int i = 0; i < ESL_LEN; ++i) {
+        num_of_ones_x += input.X[i];
+        num_of_ones_y += input.Y[i];
+    }
+
+    in_x_double = ((double)num_of_ones_x - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN);
+    in_y_double = ((double)num_of_ones_y - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN);
+
+    if(in_y_double == 0){
+        printf("ERROR IN SNG_TO_DOUBLE, %d\n", num_of_ones_y);
+        in_y_double = 0.001;
+    }
+
+    return in_x_double;// / in_y_double;
+
+}
 
 
 ESL_num multiplier(ESL_num first, ESL_num second) {
     ESL_num result;
+    int num_of_ones = 0;
+
     for (int i = 0; i < ESL_LEN; ++i) {
-        result.X[i] = ((first.X[i] + second.X[i]) % 2) ? 0 : 1;
-        result.Y[i] = ((first.Y[i] + second.Y[i]) % 2) ? 0 : 1;
+        result.X[i] = (first.X[i] == second.X[i]) ? 1 : 0;
+        result.Y[i] = (first.Y[i] == second.Y[i]) ? 1 : 0;
+        num_of_ones += result.Y[i];
     }
+
+    // printf("%lf\n", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
+    
     return result;
+
 }
 
 ESL_num adder(ESL_num first, ESL_num second) {
     ESL_num result;
+    int y_num = 0;
     for (int i = 0; i < ESL_LEN; ++i) {
-        result.X[i] = ((random_gen() % 2) == 0) ? ((first.X[i] == 0 && second.Y[i] == 0) ? 1 : 0) : ((first.Y[i] == 0 && second.X[i] == 0) ? 1 : 0);
-        result.Y[i] = (((random_gen() % 2) == 0) && (first.Y[i] == 0) && (second.Y[i] == 0)) ? 1 : 0;
+        result.X[i] = ((rand() % 2) == 0) ? ((first.X[i] == second.Y[i]) ? 1 : 0) : ((first.Y[i] == second.X[i]) ? 1 : 0);
+        result.Y[i] = (((rand() % 2) + first.Y[i] + second.Y[i]) % 2 == 0) ? 1 : 0;
+        y_num += result.Y[i];
+    }
+    if(y_num == 256){
+        printf("%lf %lf\n", SNG_to_double(first), SNG_to_double(second));
     }
     return result;
 }
@@ -161,18 +195,22 @@ ESL_num mac(ESL_num input, ESL_num weight, ESL_num initial){
 // 	fclose(fp_bias);
 // }
 
+
 ESL_num SNG(double input){
     int input_int = input * pow(2, FRACTION_LEN);
     int const_temp1 = pow(2, FRACTION_LEN + INTEGER_LEN);
     int const_temp2 = const_temp1 * 2;
-    ESL_num result;
     int num_of_ones = 0;
+    ESL_num result;
     for (int i = 0; i < ESL_LEN; ++i) {
-        result.X[i] = ((random_gen() % const_temp2) < (input_int + const_temp1)) ? 1 : 0;
-        num_of_ones += result.X[i];
-        result.Y[i] = ((random_gen() % const_temp2) < (pow(2, FRACTION_LEN) + const_temp1)) ? 1 : 0;
+        result.X[i] = ((rand() % const_temp2) < (input_int + const_temp1)) ? 1 : 0;
+        result.Y[i] = ((rand() % const_temp2) < (pow(2, FRACTION_LEN) + const_temp1)) ? 1 : 0;
+        num_of_ones += result.Y[i];
     }
-    printf("%lf\n", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
+
+    // printf("Y = %lf\n", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
+
+
     return result;
 }
 
@@ -193,11 +231,11 @@ double bipolar_stochastic_divider(ESL_num input){
         }
     }
     for (int i = 0; i < ESL_LEN; ++i) {
-        sc_approximate_num = ((random_gen() % (int)pow(2, FRACTION_LEN + INTEGER_LEN + 1)) < approximate_num) ? 1 : 0;
-        approximate_p = ((sc_approximate_num == 0) && (input.X[i] == 0)) ? 1 : 0;
+        sc_approximate_num = ((rand() % (int)pow(2, FRACTION_LEN + INTEGER_LEN + 1)) < approximate_num) ? 1 : 0;
+        approximate_p = (sc_approximate_num == input.X[i]) ? 1 : 0;
         com_approximate = (approximate_p != input.X[i]) ? 1 : 0;
-        max_approximate = (sc_approximate_num == (pow(2, FRACTION_LEN + INTEGER_LEN + 1) - 1)) ? 1 : 0;
-        min_approximate = (sc_approximate_num == 0) ? 1 : 0;
+        max_approximate = (com_approximate == (pow(2, FRACTION_LEN + INTEGER_LEN + 1) - 1)) ? 1 : 0;
+        min_approximate = (com_approximate == 0) ? 1 : 0;
         if(com_approximate == 1){
             if(input.X[i] == 1 && max_approximate == 0){
                 approximate_num += 1;
@@ -205,10 +243,9 @@ double bipolar_stochastic_divider(ESL_num input){
                 approximate_num -= 1;
             }
         }
-        printf("%d-%lf ", approximate_num, ((double)(approximate_num - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN)));
+        // printf("%d-%lf ", approximate_num, ((double)(approximate_num - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN)));
     }
-    approximate_num -= pow(2, FRACTION_LEN + INTEGER_LEN);
-    return ((double)approximate_num) / pow(2, FRACTION_LEN);
+    return ((double)(approximate_num - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
 }
 
 // void fc_layer(double weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], double biasses[MAX_FEATURE_NUM], double inputs[MAX_FEATURE_NUM], double outputs[MAX_FEATURE_NUM], int input_num, int output_num, int af_num){
@@ -600,39 +637,155 @@ double bipolar_stochastic_divider(ESL_num input){
 
 // }
 
-double ESL_to_double(ESL_num input){
-    int num_of_ones = 0;
-    for (int i = 0; i < ESL_LEN; ++i){
-        num_of_ones += input.X[i];
-    }
-    printf("%lf/", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
-
-    num_of_ones = 0;
-    for (int i = 0; i < ESL_LEN; ++i){
-        num_of_ones += input.Y[i];
-    }
-    printf("%lf", ((double)num_of_ones - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN));
+double absolute(double input){
+    if(input < 0.0000)
+        return (-1.00000) * input;
+    return input;
 }
 
-int main(){
+void mult_accuracy(){
 
-    double num_double = -0.25;
+    double num_double_1[1000];
+    double num_double_2[1000];
     ESL_num num_ESL;
     ESL_num answer;
 
-    // printf("%lf == %lf\n", num_double, bipolar_stochastic_divider(SNG(num_double)));
+    double diff = 0;
+    double curr_diff = 0;
 
-    SNG(-0.5);
-    SNG(-0.5);
-    SNG(-0.5);
-    SNG(-0.5);
-    SNG(-0.5);
+    // printf("%lf == %lf\n", num_double_1[i], bipolar_stochastic_divider(SNG(num_double_1[i])));
 
+    for (double j = 1.97; j > 0; j = j - 0.01){
+        printf("%lf\n", j);
+    }
+    // return 0;
+    printf("\n\n\n\n\ndiifs:\n\n\n\n");
 
-    answer = multiplier(SNG(0.5), SNG(0.5));
+    for (double j = 1.97; j > 0; j = j - 0.01){
+        for (int i = 0; i < 1000; ++i){
+            num_double_1[i] = ((double)(rand() & (int)(pow(2, FRACTION_LEN + INTEGER_LEN + 1) - 1)) - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN);
+            num_double_2[i] = ((double)(rand() & (int)(pow(2, FRACTION_LEN + INTEGER_LEN + 1) - 1)) - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN);
+            if(absolute(num_double_1[i]) <= j || absolute(num_double_2[i]) <= j || absolute(num_double_1[i] * num_double_2[i]) >= 4){
+                i--;
+                continue;
+            }
+            // printf("%lf\n", num_double_1[i] * num_double_2[i]);
+        }
 
-    
-    printf("%lf\n", ESL_to_double(answer));
+        diff = 0;
+        for (int i = 0; i < 1000; ++i){
+            answer = multiplier(SNG(num_double_1[i]), SNG(num_double_2[i]));
+            curr_diff = absolute((absolute(num_double_1[i] * num_double_2[i]) - absolute(SNG_to_double(answer))) / (num_double_1[i] * num_double_2[i]));
+            // printf("%lf * %lf = %lf, %lf, %lf\n", num_double_1[i], num_double_2[i], num_double_1[i] * num_double_2[i], 4.0000*SNG_to_double(answer), curr_diff);
+            diff += curr_diff;
+        }
+        printf("%lf\n", diff/1000.00000);
 
+    }
+
+}
+
+void one_sng_accuracy(){
+    double num_double[1000];
+    ESL_num answer;
+
+    double diff = 0;
+    double curr_diff = 0;
+
+    diff = 0;
+    for (int i = 0; i < 1000; ++i){
+        answer = SNG(1.000000000);
+        curr_diff = absolute(1.0000000 - SNG_to_double(answer));
+        diff += curr_diff;
+    }
+    printf("%lf\n", diff/1000.00000);
+
+}
+
+void one_mult_accuracy(){
+    ESL_num num_ESL;
+    ESL_num answer;
+
+    double diff = 0;
+    double curr_diff = 0;
+
+    for (int i = 0; i < 1000; ++i){
+        answer = multiplier(SNG(1.00000), SNG(1.00000));
+        curr_diff = absolute(1.000000 - (4.00000 * SNG_to_double(answer)));
+        diff += curr_diff;
+    }
+    printf("%lf\n", diff/1000.00000);
+
+}
+
+void bipolar_divider_accuracy(){
+    double num_double[1000];
+    double answer;
+
+    double diff = 0;
+    double curr_diff = 0;
+
+    for (double j = 3.99; j > -4; j = j - 0.01){
+        printf("%lf\n", j);
+    }
+    // return 0;
+    printf("\n\n\n\n\ndiifs:\n\n\n\n");
+
+    for (double j = 3.99; j > -4; j = j - 0.01){
+
+        diff = 0;
+        for (int i = 0; i < 1000; ++i){
+            answer = bipolar_stochastic_divider(SNG(j));
+            curr_diff = absolute(j - answer) / absolute(j);
+            diff += curr_diff;
+        }
+        printf("%lf\n", diff/1000.000000000);
+    }
+}
+
+void add_accuracy(){
+
+    double num_double_1[1000];
+    double num_double_2[1000];
+    ESL_num num_ESL;
+    ESL_num answer;
+
+    double diff = 0;
+    double curr_diff = 0;
+
+    // printf("%lf == %lf\n", num_double_1[i], bipolar_stochastic_divider(SNG(num_double_1[i])));
+
+    for (double j = 1.97; j > 0; j = j - 0.01){
+        printf("%lf\n", j);
+    }
+    // return 0;
+    printf("\n\n\n\n\ndiifs:\n\n\n\n");
+
+    for (double j = 1.97; j > 0; j = j - 0.01){
+        for (int i = 0; i < 1000; ++i){
+            num_double_1[i] = ((double)(rand() & (int)(pow(2, FRACTION_LEN + INTEGER_LEN + 1) - 1)) - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN);
+            num_double_2[i] = ((double)(rand() & (int)(pow(2, FRACTION_LEN + INTEGER_LEN + 1) - 1)) - pow(2, FRACTION_LEN + INTEGER_LEN)) / pow(2, FRACTION_LEN);
+            if(absolute(num_double_1[i]) <= j || absolute(num_double_2[i]) <= j || absolute(num_double_1[i] + num_double_2[i]) >= 4 || num_double_1[i] + num_double_2[i] == 0){
+                i--;
+                continue;
+            }
+            // printf("%lf\n", num_double_1[i] + num_double_2[i]);
+        }
+
+        diff = 0;
+        for (int i = 0; i < 1000; ++i){
+            answer = adder(SNG(num_double_1[i]), SNG(num_double_2[i]));
+            printf("%lf + %lf = %lf-%lf\n", num_double_1[i], num_double_2[i], num_double_1[i] + num_double_2[i], SNG_to_double(answer));
+            curr_diff = absolute((absolute(num_double_1[i] + num_double_2[i]) - absolute(SNG_to_double(answer))) / (num_double_1[i] + num_double_2[i]));
+            diff += curr_diff;
+        }
+        printf("%lf\n", diff/1000.00000);
+
+    }
+
+}
+
+int main(){
+    add_accuracy();
     return 0;
 }
