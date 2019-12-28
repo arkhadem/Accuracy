@@ -33,10 +33,10 @@
 #define DEBUG_DEF 0
 #define RESULT_SHOW 1
 
-#define BIN_LEN 5
-#define FRACTION_LEN 2
+#define BIN_LEN 9
+#define FRACTION_LEN 6
 #define INTEGER_LEN 2
-#define ESL_LEN 32
+#define ESL_LEN 512
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -57,22 +57,22 @@ ESL_num SNG(double input);
 ESL_num relu_af(ESL_num input);
 ESL_num tanh_af(ESL_num input);
 void reset_cal();
-void read_cnn_inputs(ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file);
+void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file);
 double SNG_to_double_nominator(ESL_num input, char type);
 double SNG_to_double(ESL_num input);
 ESL_num multiplier(ESL_num first, ESL_num second) ;
 ESL_num adder(ESL_num first, ESL_num second) ;
 ESL_num adder_2(ESL_num first, ESL_num second) ;
 ESL_num mac(ESL_num input, ESL_num weight, ESL_num initial);
-void read_cnn_weights(ESL_num weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], ESL_num biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file);
+void read_cnn_weights(ESL_num**** weights, ESL_num* biasses, int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file);
 double bipolar_stochastic_divider(ESL_num input);
-void fc_layer(ESL_num weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], ESL_num biasses[MAX_FEATURE_NUM], ESL_num inputs[MAX_FEATURE_NUM], ESL_num outputs[MAX_FEATURE_NUM], int input_num, int output_num, int af_num);
-void read_fc_weights(ESL_num weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], ESL_num biasses[MAX_FEATURE_NUM], int input_num, int output_num, char* weight_file, char* bias_file);
+void fc_layer(ESL_num** weights, ESL_num* biasses, ESL_num* inputs, ESL_num* outputs, int input_num, int output_num, int af_num);
+void read_fc_weights(ESL_num** weights, ESL_num* biasses, int input_num, int output_num, char* weight_file, char* bias_file);
 int fc_soft_max(ESL_num inputs[MAX_FEATURE_NUM], int feature_num);
-void cnn_layer(ESL_num weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], ESL_num biasses[MAX_CHANNEL], ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], ESL_num outputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int input_channel, int output_channel, int input_size, int kernel_size, int stride, int zero_pad, int af_num);
+void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num*** outputs, int input_channel, int output_channel, int input_size, int kernel_size, int stride, int zero_pad, int af_num);
 int A_l_B(ESL_num first, ESL_num second);
-void cnn_pool(ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], ESL_num outputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int feature_channel, int input_size, int kernel_size, int stride, int zero_pad, int pool_num);
-void cnn_to_fc(ESL_num cnn_feature[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int cnn_feature_channel, int cnn_feature_size, ESL_num fc_feature[MAX_FEATURE_NUM]);
+void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int input_size, int kernel_size, int stride, int zero_pad, int pool_num);
+void cnn_to_fc(ESL_num*** cnn_feature, int cnn_feature_channel, int cnn_feature_size, ESL_num* fc_feature);
 
 
 double absolute(double input){
@@ -142,7 +142,7 @@ void reset_cal(){
         fclose(fp_image);
 }
 
-void read_cnn_inputs(ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file){
+void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file){
     unsigned char temp;
     double input_double;
 
@@ -188,7 +188,7 @@ void read_cnn_inputs(ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_S
 
 double SNG_to_double_nominator(ESL_num input, char type){
     int num_of_ones = 0;
-    for (size_t i = 0; i < ESL_LEN; i++) {
+    for (int i = 0; i < ESL_LEN; i++) {
         num_of_ones += (type == 0) ? input.Y[i] : input.X[i];
     }
     return ((double)(num_of_ones)/pow(2, BIN_LEN - 1)) - 1.00000;
@@ -250,7 +250,7 @@ ESL_num mac(ESL_num input, ESL_num weight, ESL_num initial){
     return adder(multiplier(input, weight), initial);
 }
 
-void read_cnn_weights(ESL_num weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], ESL_num biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
+void read_cnn_weights(ESL_num**** weights, ESL_num* biasses, int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
     double temp;
 
     FILE *fp_weight = fopen(weight_file, "rb");
@@ -310,7 +310,7 @@ double bipolar_stochastic_divider(ESL_num input){
     return ((double)(approximate_num) / pow(2, FRACTION_LEN)) - pow(2, INTEGER_LEN);
 }
 
-void fc_layer(ESL_num weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], ESL_num biasses[MAX_FEATURE_NUM], ESL_num inputs[MAX_FEATURE_NUM], ESL_num outputs[MAX_FEATURE_NUM], int input_num, int output_num, int af_num){
+void fc_layer(ESL_num** weights, ESL_num* biasses, ESL_num* inputs, ESL_num* outputs, int input_num, int output_num, int af_num){
 	for (int i = 0; i < output_num; i++) {
 		outputs[i] = biasses[i];
 		for (int j = 0; j < input_num; j++) {
@@ -328,7 +328,7 @@ void fc_layer(ESL_num weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], ESL_num biasses
 	}
 }
 
-void read_fc_weights(ESL_num weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], ESL_num biasses[MAX_FEATURE_NUM], int input_num, int output_num, char* weight_file, char* bias_file){
+void read_fc_weights(ESL_num** weights, ESL_num* biasses, int input_num, int output_num, char* weight_file, char* bias_file){
     double temp;
     FILE *fp_weight = fopen(weight_file, "rb");
     FILE *fp_bias = fopen(bias_file, "rb");
@@ -361,7 +361,7 @@ int fc_soft_max(ESL_num inputs[MAX_FEATURE_NUM], int feature_num){
     return max;
 }
 
-void cnn_layer(ESL_num weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], ESL_num biasses[MAX_CHANNEL], ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], ESL_num outputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int input_channel, int output_channel, int input_size, int kernel_size, int stride, int zero_pad, int af_num){
+void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num*** outputs, int input_channel, int output_channel, int input_size, int kernel_size, int stride, int zero_pad, int af_num){
     int output_size = ((input_size + (2 * zero_pad) - kernel_size) / stride) + 1;
 
     for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
@@ -398,7 +398,7 @@ int A_l_B(ESL_num first, ESL_num second){
     return (bipolar_stochastic_divider(first) < bipolar_stochastic_divider(second)) ? 1 : 0;
 }
 
-void cnn_pool(ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], ESL_num outputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int feature_channel, int input_size, int kernel_size, int stride, int zero_pad, int pool_num){
+void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int input_size, int kernel_size, int stride, int zero_pad, int pool_num){
     int output_size = ((input_size + (2 * zero_pad) - kernel_size) / stride) + 1;
     ESL_num new_candidate;
     for (int ch_itr = 0; ch_itr < feature_channel; ch_itr++) {
@@ -493,7 +493,7 @@ void cnn_pool(ESL_num inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], E
 
 #endif
 
-void cnn_to_fc(ESL_num cnn_feature[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int cnn_feature_channel, int cnn_feature_size, ESL_num fc_feature[MAX_FEATURE_NUM]){
+void cnn_to_fc(ESL_num*** cnn_feature, int cnn_feature_channel, int cnn_feature_size, ESL_num* fc_feature){
     for (int ch_itr = 0; ch_itr < cnn_feature_channel; ch_itr++) {
         for (int r_itr = 0; r_itr < cnn_feature_size; r_itr++) {
             for (int c_itr = 0; c_itr < cnn_feature_size; c_itr++) {
@@ -505,20 +505,68 @@ void cnn_to_fc(ESL_num cnn_feature[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SI
 
 void LeNet(){
 
-    ESL_num fc_weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM];
-    ESL_num fc_biasses[MAX_FEATURE_NUM];
-    ESL_num fc_inputs[MAX_FEATURE_NUM];
-    ESL_num fc_outputs[MAX_FEATURE_NUM];
+    ESL_num** fc_weights;
+    fc_weights = (ESL_num**)malloc(MAX_FEATURE_NUM*sizeof(ESL_num*));
+    for (int i = 0; i < MAX_FEATURE_NUM; i++) {
+        fc_weights[i] = (ESL_num*)malloc(MAX_FEATURE_NUM*sizeof(ESL_num));
+    }
+
+    ESL_num* fc_biasses;
+    fc_biasses = (ESL_num*)malloc(MAX_FEATURE_NUM*sizeof(ESL_num));
+
+    ESL_num* fc_inputs;
+    fc_inputs = (ESL_num*)malloc(MAX_FEATURE_NUM*sizeof(ESL_num));
+
+    ESL_num* fc_outputs;
+    fc_outputs = (ESL_num*)malloc(MAX_FEATURE_NUM*sizeof(ESL_num));
+
     int fc_input_num;
     int fc_output_num;
 
-    ESL_num input_images[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE];
+    ESL_num*** input_images;
+    input_images = (ESL_num***)malloc(MAX_CHANNEL*sizeof(ESL_num**));
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        input_images[i] = (ESL_num**)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num*));
+        for (int j = 0; j < MAX_FEATURE_SIZE; j++) {
+            input_images[i][j] = (ESL_num*)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num));
+        }
+    }
+
     unsigned char input_labels[MAX_TEST_SAMPLES];
 
-    ESL_num cnn_weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE];
-    ESL_num cnn_biasses[MAX_CHANNEL];
-    ESL_num cnn_inputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE];
-    ESL_num cnn_outputs[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE];
+    ESL_num**** cnn_weights;
+    cnn_weights = (ESL_num****)malloc(MAX_CHANNEL*sizeof(ESL_num***));
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        cnn_weights[i] = (ESL_num***)malloc(MAX_CHANNEL*sizeof(ESL_num**));
+        for (int j = 0; j < MAX_CHANNEL; j++) {
+            cnn_weights[i][j] = (ESL_num**)malloc(MAX_KERNEL_SIZE*sizeof(ESL_num*));
+            for (int k = 0; k < MAX_KERNEL_SIZE; k++) {
+                cnn_weights[i][j][k] = (ESL_num*)malloc(MAX_KERNEL_SIZE*sizeof(ESL_num));
+            }
+        }
+    }
+
+    ESL_num* cnn_biasses;
+    cnn_biasses = (ESL_num*)malloc(MAX_CHANNEL*sizeof(ESL_num));
+
+    ESL_num*** cnn_inputs;
+    cnn_inputs = (ESL_num***)malloc(MAX_CHANNEL*sizeof(ESL_num**));
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        cnn_inputs[i] = (ESL_num**)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num*));
+        for (int j = 0; j < MAX_FEATURE_SIZE; j++) {
+            cnn_inputs[i][j] = (ESL_num*)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num));
+        }
+    }
+
+    ESL_num*** cnn_outputs;
+    cnn_outputs = (ESL_num***)malloc(MAX_CHANNEL*sizeof(ESL_num**));
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        cnn_outputs[i] = (ESL_num**)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num*));
+        for (int j = 0; j < MAX_FEATURE_SIZE; j++) {
+            cnn_outputs[i][j] = (ESL_num*)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num));
+        }
+    }
+
     int cnn_output_channel;
     int cnn_input_channel;
     int cnn_input_size;
@@ -536,7 +584,7 @@ void LeNet(){
     int num_of_tests;
 
     accuracy = 0;
-    num_of_tests = 1000;
+    num_of_tests = 10;
 
     reset_cal();
 
@@ -552,7 +600,6 @@ void LeNet(){
         cnn_af_type = RELU_AF;
 
         read_cnn_inputs(input_images, input_labels, cnn_input_channel, cnn_input_size, num_of_tests, IMAGE_ADDRESS, LABEL_ADDRESS);
-
         read_cnn_weights(cnn_weights, cnn_biasses, cnn_input_channel, cnn_output_channel, cnn_kernel_size, CONV1_WEIGHT_ADDRESS, CONV1_BIAS_ADDRESS);
         cnn_layer(cnn_weights, cnn_biasses, cnn_inputs, cnn_outputs, cnn_input_channel, cnn_output_channel, cnn_input_size, cnn_kernel_size, cnn_stride, cnn_zero_padd, cnn_af_type);
 
@@ -671,10 +718,9 @@ void LeNet(){
 
         result_index = fc_soft_max(fc_outputs, fc_output_num);
         expected_index = input_labels[itr];
-
-#if(DEBUG_DEF == 1)
+//#if(DEBUG_DEF == 1)
         printf("itr: %d, expected: %d, result: %d\n", itr, expected_index, result_index);
-#endif
+//#endif
 
 #if(RESULT_SHOW == 1)
         if(itr % 10 == 0){
@@ -893,7 +939,7 @@ int main(){
     //add_accuracy();
     //mult_accuracy();
     //multiplier(SNG(1), SNG(1))
-    //for (size_t i = 0; i < 10; i++) {
+    //for (int i = 0; i < 10; i++) {
     //    printf("answer: %lf\n", SNG_to_double(multiplier(SNG(-2.656250), SNG(1.156250 ))));
     //}
     //sng_accuracy();
