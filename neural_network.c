@@ -58,8 +58,8 @@ ESL_num relu_af(ESL_num input);
 ESL_num tanh_af(ESL_num input);
 void reset_cal();
 void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file);
-double SNG_to_double_nominator(ESL_num input, char type);
-double SNG_to_double(ESL_num input);
+double ESL_to_double_nominator(ESL_num input, char type);
+double ESL_to_double(ESL_num input);
 ESL_num multiplier(ESL_num first, ESL_num second) ;
 ESL_num adder(ESL_num first, ESL_num second) ;
 ESL_num adder_2(ESL_num first, ESL_num second) ;
@@ -73,7 +73,7 @@ void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num
 int A_l_B(ESL_num first, ESL_num second);
 void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int input_size, int kernel_size, int stride, int zero_pad, int pool_num);
 void cnn_to_fc(ESL_num*** cnn_feature, int cnn_feature_channel, int cnn_feature_size, ESL_num* fc_feature);
-
+void print_cnn_features(ESL_num*** feature, int feature_channel, int feature_size);
 
 double absolute(double input){
     if(input < 0.0000)
@@ -124,7 +124,7 @@ ESL_num SNG(double input){
 }
 
 ESL_num relu_af(ESL_num input){
-    double in_af = SNG_to_double(input);
+    double in_af = ESL_to_double(input);
 	if(in_af < 0.00000000)
 		return SNG(0.00000000);
     else
@@ -132,7 +132,7 @@ ESL_num relu_af(ESL_num input){
 }
 
 ESL_num tanh_af(ESL_num input){
-    double in_af = SNG_to_double(input);
+    double in_af = ESL_to_double(input);
     return SNG(tanh(in_af));
 }
 
@@ -144,7 +144,6 @@ void reset_cal(){
 
 void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file){
     unsigned char temp;
-    double input_double;
 
     if(input_opened == 0){
         fp_image = fopen(image_file, "rb");
@@ -158,11 +157,13 @@ void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], i
         for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
             for (int i_r_itr = 0; i_r_itr < input_size; i_r_itr++) {
                 for (int i_c_itr = 0; i_c_itr < input_size; i_c_itr++) {
-                    fread(&input_double, 1, 1, fp_image);
+                    fread(&temp, 1, 1, fp_image);
                     if(FRACTION_LEN < 8){
-                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)(input_double/pow(2, 8 - FRACTION_LEN))/pow(2, FRACTION_LEN));
+                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)(temp/pow(2, 0)));
+                        //printf("%lf\n", ESL_to_double(inputs[i_ch_itr][i_r_itr][i_c_itr]));
                     } else {
-                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)input_double/256.00000000);
+                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)temp/256.00000000);
+                        //printf("%lf\n", ESL_to_double(inputs[i_ch_itr][i_r_itr][i_c_itr]));
                     }
                 }
             }
@@ -174,19 +175,20 @@ void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], i
         for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
             for (int i_r_itr = 0; i_r_itr < input_size; i_r_itr++) {
                 for (int i_c_itr = 0; i_c_itr < input_size; i_c_itr++) {
-                    fread(&input_double, 1, 1, fp_image);
+                    fread(&temp, 1, 1, fp_image);
                     if(FRACTION_LEN < 8){
-                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)(input_double/pow(2, 8 - FRACTION_LEN))/pow(2, FRACTION_LEN));
+                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)(temp/pow(2, 8 - FRACTION_LEN))/pow(2, FRACTION_LEN));
                     } else {
-                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)input_double/256.00000000);
+                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)temp/256.00000000);
                     }
                 }
             }
         }
     }
+    //print_cnn_features(inputs, input_channel, input_size);
 }
 
-double SNG_to_double_nominator(ESL_num input, char type){
+double ESL_to_double_nominator(ESL_num input, char type){
     int num_of_ones = 0;
     for (int i = 0; i < ESL_LEN; i++) {
         num_of_ones += (type == 0) ? input.Y[i] : input.X[i];
@@ -194,9 +196,9 @@ double SNG_to_double_nominator(ESL_num input, char type){
     return ((double)(num_of_ones)/pow(2, BIN_LEN - 1)) - 1.00000;
 }
 
-double SNG_to_double(ESL_num input){
-    double in_x_double = SNG_to_double_nominator(input, 1);
-    double in_y_double = SNG_to_double_nominator(input, 0);
+double ESL_to_double(ESL_num input){
+    double in_x_double = ESL_to_double_nominator(input, 1);
+    double in_y_double = ESL_to_double_nominator(input, 0);
 
     if(in_y_double == 0){
         in_y_double = 0.1;
@@ -207,6 +209,7 @@ double SNG_to_double(ESL_num input){
 }
 
 ESL_num multiplier(ESL_num first, ESL_num second) {
+    //return SNG(ESL_to_double(first)*ESL_to_double(second));
     ESL_num result;
     int num_of_ones_x = 0;
     int num_of_ones_y = 0;
@@ -222,6 +225,8 @@ ESL_num multiplier(ESL_num first, ESL_num second) {
 }
 
 ESL_num adder(ESL_num first, ESL_num second) {
+    //return SNG(ESL_to_double(first)+ESL_to_double(second));
+
     ESL_num result, half;
     int x_num = 0;
     int y_num = 0;
@@ -247,7 +252,7 @@ ESL_num adder_2(ESL_num first, ESL_num second) {
 }
 
 ESL_num mac(ESL_num input, ESL_num weight, ESL_num initial){
-    return adder(multiplier(input, weight), initial);
+    return adder_2(multiplier(input, weight), initial);
 }
 
 void read_cnn_weights(ESL_num**** weights, ESL_num* biasses, int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
@@ -352,7 +357,7 @@ int fc_soft_max(ESL_num inputs[MAX_FEATURE_NUM], int feature_num){
     int max = 0;
     double features[MAX_FEATURE_NUM];
     for (int i = 0; i < feature_num; i++) {
-        features[i] = SNG_to_double(inputs[i]);
+        features[i] = ESL_to_double(inputs[i]);
     }
     for (int i = 1; i < feature_num; i++) {
         if(features[max] < features[i])
@@ -395,7 +400,7 @@ void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num
 }
 
 int A_l_B(ESL_num first, ESL_num second){
-    return (SNG_to_double(first) < SNG_to_double(second)) ? 1 : 0;
+    return (ESL_to_double(first) < ESL_to_double(second)) ? 1 : 0;
 }
 
 void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int input_size, int kernel_size, int stride, int zero_pad, int pool_num){
@@ -440,7 +445,7 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
         for (int i = 0; i < output_num; i++) {
             printf("|\t");
             for (int j = 0; j < input_num; j++) {
-                printf("%lf\t", SNG_to_double(weights[i][j]));
+                printf("%lf\t", ESL_to_double(weights[i][j]));
                 if(j != input_num - 1){
                     printf(" ");
                 }
@@ -452,7 +457,7 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
 
     void print_fc_features(ESL_num* feature, int feature_num){
         for (int i = 0; i < feature_num; i++) {
-            printf("|\t%lf\t|\n", SNG_to_double(feature[i]));
+            printf("|\t%lf\t|\n", ESL_to_double(feature[i]));
         }
         printf("\n");
     }
@@ -463,7 +468,7 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
                 for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
                     printf("|\t");
                     for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                        printf("%lf\t", SNG_to_double(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
+                        printf("%lf\t", ESL_to_double(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
                         if(k_c_itr != kernel_size - 1){
                             printf(" ");
                         }
@@ -481,7 +486,7 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
             for (int r_itr = 0; r_itr < feature_size; r_itr++) {
                 printf("|\t");
                 for (int c_itr = 0; c_itr < feature_size; c_itr++) {
-                    printf("%lf\t", SNG_to_double(feature[ch_itr][r_itr][c_itr]));
+                    printf("%lf\t", ESL_to_double(feature[ch_itr][r_itr][c_itr]));
                 }
                 printf("|\n");
             }
@@ -519,15 +524,6 @@ void LeNet(){
 
     int fc_input_num;
     int fc_output_num;
-
-    ESL_num*** input_images;
-    input_images = (ESL_num***)malloc(MAX_CHANNEL*sizeof(ESL_num**));
-    for (int i = 0; i < MAX_CHANNEL; i++) {
-        input_images[i] = (ESL_num**)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num*));
-        for (int j = 0; j < MAX_FEATURE_SIZE; j++) {
-            input_images[i][j] = (ESL_num*)malloc(MAX_FEATURE_SIZE*sizeof(ESL_num));
-        }
-    }
 
     unsigned char input_labels[MAX_TEST_SAMPLES];
 
@@ -595,8 +591,7 @@ void LeNet(){
         cnn_stride = 1;
         cnn_zero_padd = 2;
         cnn_af_type = RELU_AF;
-
-        read_cnn_inputs(input_images, input_labels, cnn_input_channel, cnn_input_size, num_of_tests, IMAGE_ADDRESS, LABEL_ADDRESS);
+        read_cnn_inputs(cnn_inputs, input_labels, cnn_input_channel, cnn_input_size, num_of_tests, IMAGE_ADDRESS, LABEL_ADDRESS);
         read_cnn_weights(cnn_weights, cnn_biasses, cnn_input_channel, cnn_output_channel, cnn_kernel_size, CONV1_WEIGHT_ADDRESS, CONV1_BIAS_ADDRESS);
         cnn_layer(cnn_weights, cnn_biasses, cnn_inputs, cnn_outputs, cnn_input_channel, cnn_output_channel, cnn_input_size, cnn_kernel_size, cnn_stride, cnn_zero_padd, cnn_af_type);
 
@@ -774,8 +769,8 @@ void mult_accuracy(){
         diff = 0;
         for (int i = 0; i < 1000; ++i){
             answer = multiplier(SNG(num_double_1[i]), SNG(num_double_2[i]));
-            curr_diff = absolute((absolute(num_double_1[i] * num_double_2[i]) - absolute(SNG_to_double(answer))) / (num_double_1[i] * num_double_2[i]));
-            printf("%lf * %lf = [%lf - %lf], diff: %lf\n", num_double_1[i], num_double_2[i], num_double_1[i] * num_double_2[i], SNG_to_double(answer), curr_diff);
+            curr_diff = absolute((absolute(num_double_1[i] * num_double_2[i]) - absolute(ESL_to_double(answer))) / (num_double_1[i] * num_double_2[i]));
+            printf("%lf * %lf = [%lf - %lf], diff: %lf\n", num_double_1[i], num_double_2[i], num_double_1[i] * num_double_2[i], ESL_to_double(answer), curr_diff);
             diff += curr_diff;
         }
         printf("%lf\n", diff/1000.00000);
@@ -794,7 +789,7 @@ void one_sng_accuracy(){
     diff = 0;
     for (int i = 0; i < 1000; ++i){
         answer = SNG(1.000000000);
-        curr_diff = absolute(1.0000000 - SNG_to_double(answer));
+        curr_diff = absolute(1.0000000 - ESL_to_double(answer));
         diff += curr_diff;
     }
     printf("%lf\n", diff/1000.00000);
@@ -817,7 +812,7 @@ void sng_accuracy(){
         diff = 0;
         for (int j = 0; j < 1000; ++j){
             answer = SNG(i);
-            curr_diff = absolute((i - SNG_to_double(answer)) / i);
+            curr_diff = absolute((i - ESL_to_double(answer)) / i);
             diff += curr_diff;
         }
         printf("%lf\n", diff/1000.00000);
@@ -835,7 +830,7 @@ void one_mult_accuracy(){
 
     for (int i = 0; i < 1000; ++i){
         answer = multiplier(SNG(1.00000), SNG(1.00000));
-        curr_diff = absolute(1.000000 - (4.00000 * SNG_to_double(answer)));
+        curr_diff = absolute(1.000000 - (4.00000 * ESL_to_double(answer)));
         diff += curr_diff;
     }
     printf("%lf\n", diff/1000.00000);
@@ -862,7 +857,7 @@ void bipolar_divider_accuracy(){
         diff = 0;
         for (int i = 0; i < 1000; ++i){
             converted = SNG(j);
-            golden_answer = SNG_to_double(converted);
+            golden_answer = ESL_to_double(converted);
             if(golden_answer == 0){
                 i--;
                 continue;
@@ -915,21 +910,21 @@ void add_accuracy(){
         second_num = SNG(num_double_2[i]);
         result1 = adder(first_num, second_num);
         result2 = adder_2(first_num, second_num);
-        curr_diff_1 = absolute((absolute(num_double_1[i] + num_double_2[i]) - absolute(SNG_to_double(result1))) / (num_double_1[i] + num_double_2[i]));
-        curr_diff_2 = absolute((absolute(num_double_1[i] + num_double_2[i]) - absolute(SNG_to_double(result2))) / (num_double_1[i] + num_double_2[i]));
+        curr_diff_1 = absolute((absolute(num_double_1[i] + num_double_2[i]) - absolute(ESL_to_double(result1))) / (num_double_1[i] + num_double_2[i]));
+        curr_diff_2 = absolute((absolute(num_double_1[i] + num_double_2[i]) - absolute(ESL_to_double(result2))) / (num_double_1[i] + num_double_2[i]));
         diff_1 += curr_diff_1;
         diff_2 += curr_diff_2;
         printf("%lf/%lf + %lf/%lf = %lf/%lf (%lf) result1: %lf/%lf (%lf) (%lf) result2: %lf/%lf (%lf) (%lf)\n",
-            SNG_to_double_nominator(first_num, 1), SNG_to_double_nominator(first_num, 0),
-            SNG_to_double_nominator(second_num, 1), SNG_to_double_nominator(second_num, 0),
-            SNG_to_double_nominator(first_num, 1) * SNG_to_double_nominator(second_num, 0) + SNG_to_double_nominator(first_num, 0) * SNG_to_double_nominator(second_num, 1),
-            SNG_to_double_nominator(first_num, 0) * SNG_to_double_nominator(second_num, 0),
-            SNG_to_double(first_num) + SNG_to_double(second_num),
-            SNG_to_double_nominator(result1, 1), SNG_to_double_nominator(result1, 0),
+            ESL_to_double_nominator(first_num, 1), ESL_to_double_nominator(first_num, 0),
+            ESL_to_double_nominator(second_num, 1), ESL_to_double_nominator(second_num, 0),
+            ESL_to_double_nominator(first_num, 1) * ESL_to_double_nominator(second_num, 0) + ESL_to_double_nominator(first_num, 0) * ESL_to_double_nominator(second_num, 1),
+            ESL_to_double_nominator(first_num, 0) * ESL_to_double_nominator(second_num, 0),
+            ESL_to_double(first_num) + ESL_to_double(second_num),
+            ESL_to_double_nominator(result1, 1), ESL_to_double_nominator(result1, 0),
             curr_diff_1,
-            SNG_to_double(result1),
-            SNG_to_double_nominator(result2, 1), SNG_to_double_nominator(result2, 0),
-            SNG_to_double(result2),
+            ESL_to_double(result1),
+            ESL_to_double_nominator(result2, 1), ESL_to_double_nominator(result2, 0),
+            ESL_to_double(result2),
             curr_diff_2
         );
 
@@ -946,7 +941,7 @@ int main(){
     //mult_accuracy();
     //multiplier(SNG(1), SNG(1))
     //for (int i = 0; i < 10; i++) {
-    //    printf("answer: %lf\n", SNG_to_double(multiplier(SNG(-2.656250), SNG(1.156250 ))));
+    //    printf("answer: %lf\n", ESL_to_double(multiplier(SNG(-2.656250), SNG(1.156250 ))));
     //}
     //sng_accuracy();
     //return 0;
@@ -960,15 +955,15 @@ int main(){
         result1 = adder(first_num, second_num);
         result2 = adder_2(first_num, second_num);
         printf("%lf/%lf + %lf/%lf = %lf/%lf (%lf)   result1: %lf/%lf (%lf)   result2: %lf/%lf (%lf)\n",
-            SNG_to_double_nominator(first_num, 1), SNG_to_double_nominator(first_num, 0),
-            SNG_to_double_nominator(second_num, 1), SNG_to_double_nominator(second_num, 0),
-            SNG_to_double_nominator(first_num, 1) * SNG_to_double_nominator(second_num, 0) + SNG_to_double_nominator(first_num, 0) * SNG_to_double_nominator(second_num, 1),
-            SNG_to_double_nominator(first_num, 0) * SNG_to_double_nominator(second_num, 0),
-            SNG_to_double(first_num) + SNG_to_double(second_num),
-            SNG_to_double_nominator(result1, 1), SNG_to_double_nominator(result1, 0),
-            SNG_to_double(result1),
-            SNG_to_double_nominator(result2, 1), SNG_to_double_nominator(result2, 0),
-            SNG_to_double(result2)
+            ESL_to_double_nominator(first_num, 1), ESL_to_double_nominator(first_num, 0),
+            ESL_to_double_nominator(second_num, 1), ESL_to_double_nominator(second_num, 0),
+            ESL_to_double_nominator(first_num, 1) * ESL_to_double_nominator(second_num, 0) + ESL_to_double_nominator(first_num, 0) * ESL_to_double_nominator(second_num, 1),
+            ESL_to_double_nominator(first_num, 0) * ESL_to_double_nominator(second_num, 0),
+            ESL_to_double(first_num) + ESL_to_double(second_num),
+            ESL_to_double_nominator(result1, 1), ESL_to_double_nominator(result1, 0),
+            ESL_to_double(result1),
+            ESL_to_double_nominator(result2, 1), ESL_to_double_nominator(result2, 0),
+            ESL_to_double(result2)
         );
     }
     */
