@@ -30,7 +30,7 @@
 
 #define MAX_FEATURE_NUM 120
 
-#define DEBUG_DEF 0
+#define DEBUG_DEF 1
 #define RESULT_SHOW 1
 
 #define BIN_LEN 9
@@ -102,14 +102,14 @@ ESL_num SNG(double input){
     int max_num = pow(2, BIN_LEN);
     int num_of_ones = 0;
     ESL_num result;
-    double nominator = input;
-    double denominator = 1;
+    double nominator, denominator;
 
-    if(nominator != 0){
-        while(absolute(nominator) >= 1) {
-            nominator /= 2;
-            denominator /= 2;
-        }
+    if(absolute(input) >= 1){
+        nominator = 1.000000;
+        denominator = 1.000000 / input;
+    } else{
+        nominator = input;
+        denominator = 1.000000;
     }
 
     int nominator_int = (int)((nominator + 1) * pow(2, BIN_LEN - 1));
@@ -124,7 +124,7 @@ ESL_num SNG(double input){
 }
 
 ESL_num relu_af(ESL_num input){
-    double in_af = bipolar_stochastic_divider(input);
+    double in_af = SNG_to_double(input);
 	if(in_af < 0.00000000)
 		return SNG(0.00000000);
     else
@@ -132,7 +132,7 @@ ESL_num relu_af(ESL_num input){
 }
 
 ESL_num tanh_af(ESL_num input){
-    double in_af = bipolar_stochastic_divider(input);
+    double in_af = SNG_to_double(input);
     return SNG(tanh(in_af));
 }
 
@@ -307,7 +307,7 @@ double bipolar_stochastic_divider(ESL_num input){
             }
         }
     }
-    return ((double)(approximate_num) / pow(2, FRACTION_LEN)) - pow(2, INTEGER_LEN);
+    return ((double)(approximate_num) / pow(2, BIN_LEN - 1)) - 1.00000;
 }
 
 void fc_layer(ESL_num** weights, ESL_num* biasses, ESL_num* inputs, ESL_num* outputs, int input_num, int output_num, int af_num){
@@ -352,7 +352,7 @@ int fc_soft_max(ESL_num inputs[MAX_FEATURE_NUM], int feature_num){
     int max = 0;
     double features[MAX_FEATURE_NUM];
     for (int i = 0; i < feature_num; i++) {
-        features[i] = bipolar_stochastic_divider(inputs[i]);
+        features[i] = SNG_to_double(inputs[i]);
     }
     for (int i = 1; i < feature_num; i++) {
         if(features[max] < features[i])
@@ -395,7 +395,7 @@ void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num
 }
 
 int A_l_B(ESL_num first, ESL_num second){
-    return (bipolar_stochastic_divider(first) < bipolar_stochastic_divider(second)) ? 1 : 0;
+    return (SNG_to_double(first) < SNG_to_double(second)) ? 1 : 0;
 }
 
 void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int input_size, int kernel_size, int stride, int zero_pad, int pool_num){
@@ -436,8 +436,7 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
 }
 
 
-#if(DEBUG_DEF == 1)
-    void print_fc_weights(ESL_num weights[MAX_FEATURE_NUM][MAX_FEATURE_NUM], int input_num, int output_num){
+    void print_fc_weights(ESL_num** weights, int input_num, int output_num){
         for (int i = 0; i < output_num; i++) {
             printf("|\t");
             for (int j = 0; j < input_num; j++) {
@@ -451,14 +450,14 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
         printf("\n");
     }
 
-    void print_fc_features(ESL_num feature[MAX_FEATURE_NUM], int feature_num){
+    void print_fc_features(ESL_num* feature, int feature_num){
         for (int i = 0; i < feature_num; i++) {
             printf("|\t%lf\t|\n", SNG_to_double(feature[i]));
         }
         printf("\n");
     }
 
-    void print_cnn_weights(ESL_num weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], int output_channel, int input_channel, int kernel_size){
+    void print_cnn_weights(ESL_num**** weights, int output_channel, int input_channel, int kernel_size){
         for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
             for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                 for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
@@ -477,7 +476,7 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
         }
     }
 
-    void print_cnn_features(ESL_num feature[MAX_CHANNEL][MAX_FEATURE_SIZE][MAX_FEATURE_SIZE], int feature_channel, int feature_size){
+    void print_cnn_features(ESL_num*** feature, int feature_channel, int feature_size){
         for (int ch_itr = 0; ch_itr < feature_channel; ch_itr++) {
             for (int r_itr = 0; r_itr < feature_size; r_itr++) {
                 printf("|\t");
@@ -490,8 +489,6 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
         }
         printf("\n");
     }
-
-#endif
 
 void cnn_to_fc(ESL_num*** cnn_feature, int cnn_feature_channel, int cnn_feature_size, ESL_num* fc_feature){
     for (int ch_itr = 0; ch_itr < cnn_feature_channel; ch_itr++) {
@@ -584,7 +581,7 @@ void LeNet(){
     int num_of_tests;
 
     accuracy = 0;
-    num_of_tests = 10;
+    num_of_tests = 1;
 
     reset_cal();
 
@@ -718,9 +715,9 @@ void LeNet(){
 
         result_index = fc_soft_max(fc_outputs, fc_output_num);
         expected_index = input_labels[itr];
-//#if(DEBUG_DEF == 1)
+#if(DEBUG_DEF == 1)
         printf("itr: %d, expected: %d, result: %d\n", itr, expected_index, result_index);
-//#endif
+#endif
 
 #if(RESULT_SHOW == 1)
         if(itr % 10 == 0){
@@ -847,24 +844,33 @@ void one_mult_accuracy(){
 
 void bipolar_divider_accuracy(){
     double num_double[1000];
-    double answer;
+    double answer, golden_answer;
 
     double diff = 0;
     double curr_diff = 0;
 
-    for (double j = 3.99; j > -4; j = j - 0.01){
+    ESL_num converted;
+
+    for (double j = 0.99; j > -1; j = j - 0.01){
         printf("%lf\n", j);
     }
     // return 0;
     printf("\n\n\n\n\ndiifs:\n\n\n\n");
 
-    for (double j = 3.99; j > -4; j = j - 0.01){
+    for (double j = 0.99; j > -1; j = j - 0.01){
 
         diff = 0;
         for (int i = 0; i < 1000; ++i){
-            answer = bipolar_stochastic_divider(SNG(j));
-            curr_diff = absolute(j - answer) / absolute(j);
+            converted = SNG(j);
+            golden_answer = SNG_to_double(converted);
+            if(golden_answer == 0){
+                i--;
+                continue;
+            }
+            answer = bipolar_stochastic_divider(converted);
+            curr_diff = absolute((golden_answer - answer) / golden_answer);
             diff += curr_diff;
+            //printf("g[%lf], a[%lf]\n", golden_answer, answer);
         }
         printf("%lf\n", diff/1000.000000000);
     }
