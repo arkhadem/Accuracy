@@ -30,11 +30,11 @@
 
 #define MAX_FEATURE_NUM 120
 
-#define DEBUG_DEF 0
+#define DEBUG_DEF 1
 #define RESULT_SHOW 1
 
-#define FRACTION_LEN 9
-#define INTEGER_LEN 10
+#define FRACTION_LEN 6
+#define INTEGER_LEN 2
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -108,7 +108,7 @@ double quantization(double input){
 
 void read_cnn_weights(double weights[MAX_CHANNEL][MAX_CHANNEL][MAX_KERNEL_SIZE][MAX_KERNEL_SIZE], double biasses[MAX_CHANNEL], int input_channel, int output_channel, int kernel_size, char* weight_file, char* bias_file){
     double temp;
-    
+
     FILE *fp_weight = fopen(weight_file, "rb");
     FILE *fp_bias = fopen(bias_file, "rb");
     if (fp_weight == NULL || fp_bias == NULL){
@@ -347,7 +347,7 @@ void LeNet(){
     int num_of_tests;
 
     accuracy = 0;
-    num_of_tests = 1000;
+    num_of_tests = 1;
 
     reset_cal();
 
