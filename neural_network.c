@@ -34,10 +34,10 @@
 #define DEBUG_DEF_FILE 1
 #define RESULT_SHOW 1
 
-#define BIN_LEN 6
-#define FRACTION_LEN 3
+#define BIN_LEN 12
+#define FRACTION_LEN 9
 #define INTEGER_LEN 2
-#define ESL_LEN 64
+#define ESL_LEN 4096
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -259,8 +259,7 @@ ESL_num adder_arr(ESL_num* input, int num_of_elements){
         }
         result.Y[i] = ((rand() % num_of_elements) == 0) ? ((num_of_ones % 2) == 0 ? 1 : 0) : (rand() % 2);
     }
-    free(nominator_terms);
-    
+
     return result;
 }
 
@@ -275,7 +274,7 @@ ESL_num adder_arr_1(ESL_num* input, int num_of_elements){
     }else if(num_of_elements == 2){
         return adder(input[0], input[1]);
     }
-    
+
     int num_of_elements_log = (int)pow(2, (int)log2(num_of_elements));
     ESL_num result1 = adder(adder_arr_1(input, num_of_elements_log/2), adder_arr_1(&(input[num_of_elements_log/2]), num_of_elements_log/2));
     if(num_of_elements == num_of_elements_log){
@@ -297,7 +296,7 @@ ESL_num adder_arr_2(ESL_num* input, int num_of_elements){
     }else if(num_of_elements == 2){
         return adder_2(input[0], input[1]);
     }
-    
+
     int num_of_elements_log = (int)pow(2, (int)log2(num_of_elements));
     ESL_num result1 = adder_2(adder_arr_1(input, num_of_elements_log/2), adder_arr_1(&(input[num_of_elements_log/2]), num_of_elements_log/2));
     if(num_of_elements == num_of_elements_log){
@@ -601,7 +600,6 @@ void print_cnn_features(ESL_num*** feature, int feature_channel, int feature_siz
 
 
 void print_fc_weights_file(ESL_num** weights, int input_num, int output_num, char* address){
-    printf("allahoakbar %s\n", address);
     FILE *fp;
     fp = fopen(address, "w+");
     for (int i = 0; i < output_num; i++) {
@@ -609,9 +607,7 @@ void print_fc_weights_file(ESL_num** weights, int input_num, int output_num, cha
             fprintf(fp, "%lf\n", ESL_to_double(weights[i][j]));
         }
     }
-    printf("allahoakbar3\n");
     fclose(fp);
-    printf("allahoakbar2\n");
 }
 
 void print_fc_features_file(ESL_num* feature, int feature_num, char* address){
@@ -764,9 +760,9 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L6/CNN1_Weights");
-        print_cnn_features_file(cnn_inputs, cnn_input_channel, cnn_input_size, "./Network_outputs/L6/CNN1_Inputs");
-        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN1_Outputs");
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L12/CNN1_Weights");
+        print_cnn_features_file(cnn_inputs, cnn_input_channel, cnn_input_size, "./Network_outputs/L12/CNN1_Inputs");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN1_Outputs");
 #endif
 
         cnn_output_channel = 6;
@@ -786,7 +782,7 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN1_Final_Outputs");
+        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN1_Final_Outputs");
 #endif
 
 
@@ -814,8 +810,8 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L6/CNN2_Weights");
-        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN2_Outputs");
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L12/CNN2_Weights");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN2_Outputs");
 #endif
 
         cnn_output_channel = 16;
@@ -835,7 +831,7 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN2_Final_Outputs");
+        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN2_Final_Outputs");
 #endif
 
         cnn_output_channel = 120;
@@ -862,8 +858,8 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L6/CNN3_Weights");
-        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN3_Outputs");
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L12/CNN3_Weights");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN3_Outputs");
 #endif
 
 
@@ -888,8 +884,8 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_fc_weights_file(fc_weights, fc_input_num, fc_output_num, "./Network_outputs/L6/FC1_Weights");
-        print_fc_features_file(fc_outputs, fc_output_num, "./Network_outputs/L6/FC1_Outputs");
+        print_fc_weights_file(fc_weights, fc_input_num, fc_output_num, "./Network_outputs/L12/FC1_Weights");
+        print_fc_features_file(fc_outputs, fc_output_num, "./Network_outputs/L12/FC1_Outputs");
 #endif
 
         result_index = fc_soft_max(fc_outputs, fc_output_num);
@@ -1137,7 +1133,7 @@ void add_arr_accuracy(){
                 continue;
             }
             result = adder_arr(num_ESL, num_of_elements);
-           
+
             curr_diff = (golden_result - ESL_to_double(result)) * (golden_result - ESL_to_double(result));
             diff += curr_diff;
         }
@@ -1158,7 +1154,7 @@ void add_arr_accuracy(){
                 continue;
             }
             result = adder_arr_1(num_ESL, num_of_elements);
-           
+
             curr_diff = (golden_result - ESL_to_double(result)) * (golden_result - ESL_to_double(result));
             diff += curr_diff;
         }
@@ -1179,7 +1175,7 @@ void add_arr_accuracy(){
                 continue;
             }
             result = adder_arr_2(num_ESL, num_of_elements);
-           
+
             curr_diff = (golden_result - ESL_to_double(result)) * (golden_result - ESL_to_double(result));
             diff += curr_diff;
         }
