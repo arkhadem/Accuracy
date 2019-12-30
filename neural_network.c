@@ -30,13 +30,14 @@
 
 #define MAX_FEATURE_NUM 120
 
-#define DEBUG_DEF 1
+#define DEBUG_DEF 0
+#define DEBUG_DEF_FILE 1
 #define RESULT_SHOW 1
 
-#define BIN_LEN 9
-#define FRACTION_LEN 6
+#define BIN_LEN 6
+#define FRACTION_LEN 3
 #define INTEGER_LEN 2
-#define ESL_LEN 512
+#define ESL_LEN 64
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
@@ -61,6 +62,9 @@ void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], i
 double ESL_to_double_nominator(ESL_num input, char type);
 double ESL_to_double(ESL_num input);
 ESL_num multiplier(ESL_num first, ESL_num second) ;
+ESL_num adder_arr(ESL_num* input, int num_of_elements);
+ESL_num adder_arr_1(ESL_num* input, int num_of_elements);
+ESL_num adder_arr_2(ESL_num* input, int num_of_elements);
 ESL_num adder(ESL_num first, ESL_num second) ;
 ESL_num adder_2(ESL_num first, ESL_num second) ;
 ESL_num mac(ESL_num input, ESL_num weight, ESL_num initial);
@@ -159,7 +163,7 @@ void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], i
                 for (int i_c_itr = 0; i_c_itr < input_size; i_c_itr++) {
                     fread(&temp, 1, 1, fp_image);
                     if(FRACTION_LEN < 8){
-                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)(temp/pow(2, 0)));
+                        inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)(temp/pow(2, 8)));
                         //printf("%lf\n", ESL_to_double(inputs[i_ch_itr][i_r_itr][i_c_itr]));
                     } else {
                         inputs[i_ch_itr][i_r_itr][i_c_itr] = SNG((double)temp/256.00000000);
@@ -224,6 +228,86 @@ ESL_num multiplier(ESL_num first, ESL_num second) {
     return result;
 }
 
+ESL_num adder_arr(ESL_num* input, int num_of_elements){
+    if(num_of_elements == 0){
+        printf("ERROR. Calling adder with zero inputs\n");
+        exit(-1);
+    }
+
+    if(num_of_elements == 1){
+        return input[0];
+    }
+
+    ESL_num result;
+    int num_of_ones;
+    char* nominator_terms;
+
+    nominator_terms = (char*)malloc(num_of_elements*sizeof(char));
+    for (int i = 0; i < ESL_LEN; ++i) {
+        for (int j = 0; j < num_of_elements; ++j) {
+            num_of_ones = 0;
+            for (int k = 0; k < num_of_elements; ++k) {
+                num_of_ones += (j == k) ? input[k].X[i] : input[k].Y[i];
+            }
+            nominator_terms[j] = (num_of_ones % 2) == 0 ? 1 : 0;
+        }
+        result.X[i] = nominator_terms[rand() % num_of_elements];
+
+        num_of_ones = 0;
+        for (int j = 0; j < num_of_elements; ++j) {
+            num_of_ones += input[j].Y[i];
+        }
+        result.Y[i] = ((rand() % num_of_elements) == 0) ? ((num_of_ones % 2) == 0 ? 1 : 0) : (rand() % 2);
+    }
+    free(nominator_terms);
+    
+    return result;
+}
+
+ESL_num adder_arr_1(ESL_num* input, int num_of_elements){
+    if(num_of_elements == 0){
+        printf("ERROR. Calling adder with zero inputs\n");
+        exit(-1);
+    }
+
+    if(num_of_elements == 1){
+        return input[0];
+    }else if(num_of_elements == 2){
+        return adder(input[0], input[1]);
+    }
+    
+    int num_of_elements_log = (int)pow(2, (int)log2(num_of_elements));
+    ESL_num result1 = adder(adder_arr_1(input, num_of_elements_log/2), adder_arr_1(&(input[num_of_elements_log/2]), num_of_elements_log/2));
+    if(num_of_elements == num_of_elements_log){
+        return result1;
+    } else {
+        ESL_num result2 = adder_arr_1(&(input[num_of_elements_log]), num_of_elements - num_of_elements_log);
+        return adder(result1, result2);
+    }
+}
+
+ESL_num adder_arr_2(ESL_num* input, int num_of_elements){
+    if(num_of_elements == 0){
+        printf("ERROR. Calling adder with zero inputs\n");
+        exit(-1);
+    }
+
+    if(num_of_elements == 1){
+        return input[0];
+    }else if(num_of_elements == 2){
+        return adder_2(input[0], input[1]);
+    }
+    
+    int num_of_elements_log = (int)pow(2, (int)log2(num_of_elements));
+    ESL_num result1 = adder_2(adder_arr_1(input, num_of_elements_log/2), adder_arr_1(&(input[num_of_elements_log/2]), num_of_elements_log/2));
+    if(num_of_elements == num_of_elements_log){
+        return result1;
+    } else {
+        ESL_num result2 = adder_arr_1(&(input[num_of_elements_log]), num_of_elements - num_of_elements_log);
+        return adder_2(result1, result2);
+    }
+}
+
 ESL_num adder(ESL_num first, ESL_num second) {
     //return SNG(ESL_to_double(first)+ESL_to_double(second));
 
@@ -266,12 +350,12 @@ void read_cnn_weights(ESL_num**** weights, ESL_num* biasses, int input_channel, 
     }
     for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
         fscanf(fp_bias, "%lf\n", &temp);
-        biasses[o_ch_itr] = SNG(quantization(temp));
+        biasses[o_ch_itr] = SNG(temp);
         for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
             for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                 for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
                     fscanf(fp_weight, "%lf", &temp);
-                    weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr] = SNG(quantization(temp));
+                    weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr] = SNG(temp);
                 }
             }
         }
@@ -316,11 +400,18 @@ double bipolar_stochastic_divider(ESL_num input){
 }
 
 void fc_layer(ESL_num** weights, ESL_num* biasses, ESL_num* inputs, ESL_num* outputs, int input_num, int output_num, int af_num){
-	for (int i = 0; i < output_num; i++) {
-		outputs[i] = biasses[i];
+    int num_of_elements = 0;
+    ESL_num* elements = (ESL_num*)malloc((output_num+1)*sizeof(ESL_num));
+
+    for (int i = 0; i < output_num; i++) {
+		elements[0] = biasses[i];
+        num_of_elements = 1;
 		for (int j = 0; j < input_num; j++) {
-            outputs[i] = mac(inputs[j], weights[i][j], outputs[i]);
+            elements[num_of_elements] =  multiplier(inputs[j], weights[i][j]);
+            num_of_elements++;
 		}
+
+        outputs[i] = adder_arr(elements, num_of_elements);
 
         switch (af_num) {
             case RELU_AF:
@@ -343,10 +434,10 @@ void read_fc_weights(ESL_num** weights, ESL_num* biasses, int input_num, int out
     }
     for (int i = 0; i < output_num; i++) {
         fscanf(fp_bias, "%lf\n", &temp);
-        biasses[i] = SNG(quantization(temp));
+        biasses[i] = SNG(temp);
         for (int j = 0; j < input_num; j++) {
             fscanf(fp_weight, "%lf", &temp);
-            weights[i][j] = SNG(quantization(temp));
+            weights[i][j] = SNG(temp);
         }
     }
 	fclose(fp_weight);
@@ -369,23 +460,36 @@ int fc_soft_max(ESL_num inputs[MAX_FEATURE_NUM], int feature_num){
 void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num*** outputs, int input_channel, int output_channel, int input_size, int kernel_size, int stride, int zero_pad, int af_num){
     int output_size = ((input_size + (2 * zero_pad) - kernel_size) / stride) + 1;
 
+    int num_of_elements = 0;
+    ESL_num* elements = (ESL_num*)malloc((input_channel*kernel_size*kernel_size+1)*sizeof(ESL_num));
+
     for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
         for (int o_r_itr = 0; o_r_itr < output_size; o_r_itr++) {
             for (int o_c_itr = 0; o_c_itr < output_size; o_c_itr++) {
-                outputs[o_ch_itr][o_r_itr][o_c_itr] = biasses[o_ch_itr];
+                elements[0] = biasses[o_ch_itr];
+                num_of_elements = 1;
         		for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
                     for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
                         for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
                             if((((stride*o_r_itr)+k_r_itr-zero_pad) >= 0) && (((stride*o_c_itr)+k_c_itr-zero_pad) >= 0) && (((stride*o_r_itr)+k_r_itr-zero_pad) < input_size) && (((stride*o_c_itr)+k_c_itr-zero_pad) < input_size)){
-                                outputs[o_ch_itr][o_r_itr][o_c_itr] = mac(
-                                                                            inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad],
-                                                                            weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr],
-                                                                            outputs[o_ch_itr][o_r_itr][o_c_itr]
-                                                                        );
+                                elements[num_of_elements] =  multiplier(
+                                                                    inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad],
+                                                                    weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]
+                                                                );
+                                // printf("(i[%d][%d][%d]=%lf)*(w[%d][%d][%d][%d]=%lf)=%lf(%lf)\n",
+                                //     i_ch_itr, (stride*o_r_itr)+k_r_itr-zero_pad, (stride*o_c_itr)+k_c_itr-zero_pad,
+                                //     ESL_to_double(inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad]),
+                                //     o_ch_itr, i_ch_itr, k_r_itr, k_c_itr,
+                                //     ESL_to_double(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]),
+                                //     ESL_to_double(inputs[i_ch_itr][(stride*o_r_itr)+k_r_itr-zero_pad][(stride*o_c_itr)+k_c_itr-zero_pad]) * ESL_to_double(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]),
+                                //     ESL_to_double(elements[num_of_elements])
+                                // );
+                                num_of_elements++;
                             }
                 		}
                     }
         		}
+                outputs[o_ch_itr][o_r_itr][o_c_itr] = adder_arr(elements, num_of_elements);
                 switch (af_num) {
                     case RELU_AF:
                         outputs[o_ch_itr][o_r_itr][o_c_itr] = relu_af(outputs[o_ch_itr][o_r_itr][o_c_itr]);
@@ -397,6 +501,7 @@ void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num
     		}
 		}
 	}
+
 }
 
 int A_l_B(ESL_num first, ESL_num second){
@@ -440,60 +545,112 @@ void cnn_pool(ESL_num*** inputs, ESL_num*** outputs, int feature_channel, int in
 	}
 }
 
+void print_fc_weights(ESL_num** weights, int input_num, int output_num){
+    for (int i = 0; i < output_num; i++) {
+        printf("|\t");
+        for (int j = 0; j < input_num; j++) {
+            printf("%lf\t", ESL_to_double(weights[i][j]));
+            if(j != input_num - 1){
+                printf(" ");
+            }
+        }
+        printf("|\n");
+    }
+    printf("\n");
+}
 
-    void print_fc_weights(ESL_num** weights, int input_num, int output_num){
-        for (int i = 0; i < output_num; i++) {
-            printf("|\t");
-            for (int j = 0; j < input_num; j++) {
-                printf("%lf\t", ESL_to_double(weights[i][j]));
-                if(j != input_num - 1){
-                    printf(" ");
+void print_fc_features(ESL_num* feature, int feature_num){
+    for (int i = 0; i < feature_num; i++) {
+        printf("|\t%lf\t|\n", ESL_to_double(feature[i]));
+    }
+    printf("\n");
+}
+
+void print_cnn_weights(ESL_num**** weights, int output_channel, int input_channel, int kernel_size){
+    for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
+        for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
+            for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
+                printf("|\t");
+                for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
+                    printf("%lf\t", ESL_to_double(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
+                    if(k_c_itr != kernel_size - 1){
+                        printf(" ");
+                    }
                 }
+                printf("|\t");
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+}
+
+void print_cnn_features(ESL_num*** feature, int feature_channel, int feature_size){
+    for (int ch_itr = 0; ch_itr < feature_channel; ch_itr++) {
+        for (int r_itr = 0; r_itr < feature_size; r_itr++) {
+            printf("|\t");
+            for (int c_itr = 0; c_itr < feature_size; c_itr++) {
+                printf("%lf\t", ESL_to_double(feature[ch_itr][r_itr][c_itr]));
             }
             printf("|\n");
         }
         printf("\n");
     }
+    printf("\n");
+}
 
-    void print_fc_features(ESL_num* feature, int feature_num){
-        for (int i = 0; i < feature_num; i++) {
-            printf("|\t%lf\t|\n", ESL_to_double(feature[i]));
+
+void print_fc_weights_file(ESL_num** weights, int input_num, int output_num, char* address){
+    printf("allahoakbar %s\n", address);
+    FILE *fp;
+    fp = fopen(address, "w+");
+    for (int i = 0; i < output_num; i++) {
+        for (int j = 0; j < input_num; j++) {
+            fprintf(fp, "%lf\n", ESL_to_double(weights[i][j]));
         }
-        printf("\n");
     }
+    printf("allahoakbar3\n");
+    fclose(fp);
+    printf("allahoakbar2\n");
+}
 
-    void print_cnn_weights(ESL_num**** weights, int output_channel, int input_channel, int kernel_size){
-        for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
+void print_fc_features_file(ESL_num* feature, int feature_num, char* address){
+    FILE *fp;
+    fp = fopen(address, "w+");
+    for (int i = 0; i < feature_num; i++) {
+        fprintf(fp, "%lf\n", ESL_to_double(feature[i]));
+    }
+    fclose(fp);
+}
+
+void print_cnn_weights_file(ESL_num**** weights, int output_channel, int input_channel, int kernel_size, char* address){
+    FILE *fp;
+    fp = fopen(address, "w+");
+    for (int o_ch_itr = 0; o_ch_itr < output_channel; o_ch_itr++) {
+        for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
             for (int k_r_itr = 0; k_r_itr < kernel_size; k_r_itr++) {
-                for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
-                    printf("|\t");
-                    for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
-                        printf("%lf\t", ESL_to_double(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
-                        if(k_c_itr != kernel_size - 1){
-                            printf(" ");
-                        }
-                    }
-                    printf("|\t");
+                for (int k_c_itr = 0; k_c_itr < kernel_size; k_c_itr++) {
+                    fprintf(fp, "%lf\n", ESL_to_double(weights[o_ch_itr][i_ch_itr][k_r_itr][k_c_itr]));
                 }
-                printf("\n");
             }
-            printf("\n");
         }
     }
+    fclose(fp);
+}
 
-    void print_cnn_features(ESL_num*** feature, int feature_channel, int feature_size){
-        for (int ch_itr = 0; ch_itr < feature_channel; ch_itr++) {
-            for (int r_itr = 0; r_itr < feature_size; r_itr++) {
-                printf("|\t");
-                for (int c_itr = 0; c_itr < feature_size; c_itr++) {
-                    printf("%lf\t", ESL_to_double(feature[ch_itr][r_itr][c_itr]));
-                }
-                printf("|\n");
+void print_cnn_features_file(ESL_num*** feature, int feature_channel, int feature_size, char* address){
+    FILE *fp;
+    fp = fopen(address, "w+");
+    for (int ch_itr = 0; ch_itr < feature_channel; ch_itr++) {
+        for (int r_itr = 0; r_itr < feature_size; r_itr++) {
+            for (int c_itr = 0; c_itr < feature_size; c_itr++) {
+                fprintf(fp, "%lf\n", ESL_to_double(feature[ch_itr][r_itr][c_itr]));
             }
-            printf("\n");
         }
-        printf("\n");
     }
+    fclose(fp);
+}
+
 
 void cnn_to_fc(ESL_num*** cnn_feature, int cnn_feature_channel, int cnn_feature_size, ESL_num* fc_feature){
     for (int ch_itr = 0; ch_itr < cnn_feature_channel; ch_itr++) {
@@ -606,6 +763,12 @@ void LeNet(){
         print_cnn_features(cnn_outputs, cnn_output_channel, cnn_output_size);
 #endif
 
+#if(DEBUG_DEF_FILE == 1)
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L6/CNN1_Weights");
+        print_cnn_features_file(cnn_inputs, cnn_input_channel, cnn_input_size, "./Network_outputs/L6/CNN1_Inputs");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN1_Outputs");
+#endif
+
         cnn_output_channel = 6;
         cnn_input_channel = 6;
         cnn_input_size = 28;
@@ -622,7 +785,9 @@ void LeNet(){
         print_cnn_features(cnn_inputs, cnn_output_channel, cnn_output_size);
 #endif
 
-
+#if(DEBUG_DEF_FILE == 1)
+        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN1_Final_Outputs");
+#endif
 
 
         cnn_output_channel = 16;
@@ -648,6 +813,11 @@ void LeNet(){
         print_cnn_features(cnn_outputs, cnn_output_channel, cnn_output_size);
 #endif
 
+#if(DEBUG_DEF_FILE == 1)
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L6/CNN2_Weights");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN2_Outputs");
+#endif
+
         cnn_output_channel = 16;
         cnn_input_channel = 16;
         cnn_input_size = 10;
@@ -664,6 +834,10 @@ void LeNet(){
         print_cnn_features(cnn_inputs, cnn_output_channel, cnn_output_size);
 #endif
 
+#if(DEBUG_DEF_FILE == 1)
+        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN2_Final_Outputs");
+#endif
+
         cnn_output_channel = 120;
         cnn_input_channel = 16;
         cnn_input_size = 5;
@@ -678,13 +852,18 @@ void LeNet(){
 
 
 #if(DEBUG_DEF == 1)
-        printf("Layer 2: CNN:\n");
+        printf("Layer 3: CNN:\n");
         printf("CNN weights:\n");
         print_cnn_weights(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size);
         printf("CNN Inputs:\n");
         print_cnn_features(cnn_inputs, cnn_input_channel, cnn_input_size);
         printf("CNN Outputs:\n");
         print_cnn_features(cnn_outputs, cnn_output_channel, cnn_output_size);
+#endif
+
+#if(DEBUG_DEF_FILE == 1)
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L6/CNN3_Weights");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L6/CNN3_Outputs");
 #endif
 
 
@@ -708,11 +887,16 @@ void LeNet(){
         print_fc_features(fc_outputs, fc_output_num);
 #endif
 
+#if(DEBUG_DEF_FILE == 1)
+        print_fc_weights_file(fc_weights, fc_input_num, fc_output_num, "./Network_outputs/L6/FC1_Weights");
+        print_fc_features_file(fc_outputs, fc_output_num, "./Network_outputs/L6/FC1_Outputs");
+#endif
+
         result_index = fc_soft_max(fc_outputs, fc_output_num);
         expected_index = input_labels[itr];
-#if(DEBUG_DEF == 1)
+// #if(DEBUG_DEF == 1)
         printf("itr: %d, expected: %d, result: %d\n", itr, expected_index, result_index);
-#endif
+// #endif
 
 #if(RESULT_SHOW == 1)
         if(itr % 10 == 0){
@@ -732,50 +916,43 @@ void LeNet(){
 #endif
     reset_cal();
 
+    free(fc_weights);
+    free(fc_biasses);
+    free(fc_inputs);
+    free(fc_outputs);
+    free(cnn_weights);
+    free(cnn_biasses);
+    free(cnn_inputs);
+    free(cnn_outputs);
+
 }
 
 void mult_accuracy(){
 
     int max_num = pow(2, BIN_LEN);
 
-    double num_double_1[1000];
-    double num_double_2[1000];
-    ESL_num num_ESL;
-    ESL_num answer;
-
+    double num_double_1;
+    double num_double_2;
+    ESL_num num_ESL_1;
+    ESL_num num_ESL_2;
+    double golden_answer;
+    double answer;
     double diff = 0;
     double curr_diff = 0;
 
-    // printf("%lf == %lf\n", num_double_1[i], bipolar_stochastic_divider(SNG(num_double_1[i])));
-
-    for (double j = 1; j > 0; j = j - 0.01){
-        printf("%lf\n", j);
+    diff = 0;
+    for (int i = 0; i < 1000; ++i){
+        num_double_1 = ((double)(rand() & (max_num - 1)) / pow(2, FRACTION_LEN)) - pow(2, INTEGER_LEN);
+        num_double_2 = ((double)(rand() & (max_num - 1)) / pow(2, FRACTION_LEN)) - pow(2, INTEGER_LEN);
+        num_ESL_1 = SNG(num_double_1);
+        num_ESL_2 = SNG(num_double_2);
+        answer = ESL_to_double(multiplier(num_ESL_1, num_ESL_2));
+        golden_answer = ESL_to_double(num_ESL_1) * ESL_to_double(num_ESL_2);
+        curr_diff = (golden_answer - answer) * (golden_answer - answer);
+        diff += curr_diff;
     }
-    // return 0;
-    printf("\n\n\n\n\ndiifs:\n\n\n\n");
 
-    for (double j = 1; j > 0; j = j - 0.01){
-        for (int i = 0; i < 1000; ++i){
-            num_double_1[i] = ((double)(rand() & (max_num - 1)) / pow(2, FRACTION_LEN)) - pow(2, INTEGER_LEN) ;
-            num_double_2[i] = ((double)(rand() & (max_num - 1)) / pow(2, FRACTION_LEN)) - pow(2, INTEGER_LEN) ;
-            if(absolute(num_double_1[i]) <= j || absolute(num_double_2[i]) <= j || absolute(num_double_1[i] * num_double_2[i]) >= 4){
-                //printf("allahoakbar[%d]: %lf %lf\n", i, num_double_1[i], num_double_2[i]);
-                i--;
-                continue;
-            }
-            // printf("%lf\n", num_double_1[i] * num_double_2[i]);
-        }
-
-        diff = 0;
-        for (int i = 0; i < 1000; ++i){
-            answer = multiplier(SNG(num_double_1[i]), SNG(num_double_2[i]));
-            curr_diff = absolute((absolute(num_double_1[i] * num_double_2[i]) - absolute(ESL_to_double(answer))) / (num_double_1[i] * num_double_2[i]));
-            printf("%lf * %lf = [%lf - %lf], diff: %lf\n", num_double_1[i], num_double_2[i], num_double_1[i] * num_double_2[i], ESL_to_double(answer), curr_diff);
-            diff += curr_diff;
-        }
-        printf("%lf\n", diff/1000.00000);
-
-    }
+    printf("%lf\n", sqrt(diff/999.00000));
 
 }
 
@@ -797,25 +974,28 @@ void one_sng_accuracy(){
 }
 
 void sng_accuracy(){
-    ESL_num answer;
 
     double diff = 0;
     double curr_diff = 0;
 
-    for (double i = -3.99; i < 4.00; i += 0.01) {
-        printf("%lf\n", i);
-    }
+    ESL_num answer;
 
-    printf("allahoakbar\n\n\n");
+    // for (double i = -3.99; i < 4.00; i += 0.01) {
+    //     printf("%lf\n", i);
+    // }
+
+    // printf("allahoakbar\n\n\n");
 
     for (double i = -3.99; i < 4.00; i += 0.01) {
         diff = 0;
         for (int j = 0; j < 1000; ++j){
             answer = SNG(i);
-            curr_diff = absolute((i - ESL_to_double(answer)) / i);
+            curr_diff = (i - ESL_to_double(answer)) * (i - ESL_to_double(answer));
+            if(curr_diff < 0)
+                exit(-2);
             diff += curr_diff;
         }
-        printf("%lf\n", diff/1000.00000);
+        printf("%lf\n", sqrt(diff/999.00000));
     }
 
 
@@ -934,8 +1114,83 @@ void add_accuracy(){
 
 }
 
+void add_arr_accuracy(){
+    double num_double[40];
+    ESL_num num_ESL[40];
+    double golden_result;
+
+    ESL_num result;
+    double diff = 0;
+    double curr_diff = 0;
+
+    for (int num_of_elements = 2; num_of_elements <= 40; ++num_of_elements) {
+        diff = 0;
+        for (int test_number = 0; test_number < 1000; ++test_number){
+            golden_result = 0;
+            for (int i = 0; i < num_of_elements; ++i){
+                num_double[i] = binary_random_generator() / (double)(num_of_elements);
+                num_ESL[i] = SNG(num_double[i]);
+                golden_result += ESL_to_double(num_ESL[i]);
+            }
+            if(golden_result == 0){
+                test_number--;
+                continue;
+            }
+            result = adder_arr(num_ESL, num_of_elements);
+           
+            curr_diff = (golden_result - ESL_to_double(result)) * (golden_result - ESL_to_double(result));
+            diff += curr_diff;
+        }
+        printf("#of elements: %d, Error1: %lf\n", num_of_elements, sqrt(diff/999.00000));
+    }
+
+    for (int num_of_elements = 2; num_of_elements <= 30; ++num_of_elements) {
+        diff = 0;
+        for (int test_number = 0; test_number < 1000; ++test_number){
+            golden_result = 0;
+            for (int i = 0; i < num_of_elements; ++i){
+                num_double[i] = binary_random_generator() / (double)(num_of_elements);
+                num_ESL[i] = SNG(num_double[i]);
+                golden_result += ESL_to_double(num_ESL[i]);
+            }
+            if(golden_result == 0){
+                test_number--;
+                continue;
+            }
+            result = adder_arr_1(num_ESL, num_of_elements);
+           
+            curr_diff = (golden_result - ESL_to_double(result)) * (golden_result - ESL_to_double(result));
+            diff += curr_diff;
+        }
+        printf("#of elements: %d, Error2: %lf\n", num_of_elements, sqrt(diff/999.00000));
+    }
+
+    for (int num_of_elements = 2; num_of_elements <= 30; ++num_of_elements) {
+        diff = 0;
+        for (int test_number = 0; test_number < 1000; ++test_number){
+            golden_result = 0;
+            for (int i = 0; i < num_of_elements; ++i){
+                num_double[i] = binary_random_generator() / (double)(num_of_elements);
+                num_ESL[i] = SNG(num_double[i]);
+                golden_result += ESL_to_double(num_ESL[i]);
+            }
+            if(golden_result == 0){
+                test_number--;
+                continue;
+            }
+            result = adder_arr_2(num_ESL, num_of_elements);
+           
+            curr_diff = (golden_result - ESL_to_double(result)) * (golden_result - ESL_to_double(result));
+            diff += curr_diff;
+        }
+        printf("#of elements: %d, Error3: %lf\n", num_of_elements, sqrt(diff/999.00000));
+    }
+
+}
+
 int main(){
     LeNet();
+    //add_arr_accuracy();
     //bipolar_divider_accuracy();
     //add_accuracy();
     //mult_accuracy();
