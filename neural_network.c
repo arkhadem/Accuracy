@@ -31,19 +31,20 @@
 #define MAX_FEATURE_NUM 120
 
 #define DEBUG_DEF 0
-#define DEBUG_DEF_FILE 1
+#define DEBUG_DEF_FILE 0
 #define RESULT_SHOW 1
 
-#define BIN_LEN 12
-#define FRACTION_LEN 9
+#define BIN_LEN 13
+#define FRACTION_LEN 10
 #define INTEGER_LEN 2
-#define ESL_LEN 4096
+#define ESL_LEN 8192
 
 u_int16_t lfsr = 0xACE1u;
 unsigned period = 0;
 char s[16+1];
 
 FILE *fp_image;
+FILE *fp_label;
 int input_opened;
 
 typedef struct ESL_num {
@@ -58,7 +59,7 @@ ESL_num SNG(double input);
 ESL_num relu_af(ESL_num input);
 ESL_num tanh_af(ESL_num input);
 void reset_cal();
-void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file);
+void read_cnn_inputs(ESL_num*** inputs, unsigned char* label, int input_channel, int input_size, char* image_file, char* label_file);
 double ESL_to_double_nominator(ESL_num input, char type);
 double ESL_to_double(ESL_num input);
 ESL_num multiplier(ESL_num first, ESL_num second) ;
@@ -142,16 +143,18 @@ ESL_num tanh_af(ESL_num input){
 
 void reset_cal(){
     input_opened = 0;
-    if(fp_image != NULL)
+    if(fp_image != NULL){
         fclose(fp_image);
+        fclose(fp_label);
+    }
 }
 
-void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], int input_channel, int input_size, int num_of_samples, char* image_file, char* label_file){
+void read_cnn_inputs(ESL_num*** inputs, unsigned char* label, int input_channel, int input_size, char* image_file, char* label_file){
     unsigned char temp;
 
     if(input_opened == 0){
         fp_image = fopen(image_file, "rb");
-        FILE *fp_label = fopen(label_file, "rb");
+        fp_label = fopen(label_file, "rb");
         if (fp_image == NULL || fp_label == NULL){
             printf("ERROR. %s or %s doesn't exist\n", image_file, label_file);
             exit(-1);
@@ -172,8 +175,7 @@ void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], i
                 }
             }
         }
-        fread(label, num_of_samples, 1, fp_label);
-    	fclose(fp_label);
+        fread(label, 1, 1, fp_label);
         input_opened = 1;
     } else {
         for (int i_ch_itr = 0; i_ch_itr < input_channel; i_ch_itr++) {
@@ -188,6 +190,7 @@ void read_cnn_inputs(ESL_num*** inputs, unsigned char label[MAX_TEST_SAMPLES], i
                 }
             }
         }
+        fread(label, 1, 1, fp_label);
     }
     //print_cnn_features(inputs, input_channel, input_size);
 }
@@ -400,8 +403,7 @@ double bipolar_stochastic_divider(ESL_num input){
 
 void fc_layer(ESL_num** weights, ESL_num* biasses, ESL_num* inputs, ESL_num* outputs, int input_num, int output_num, int af_num){
     int num_of_elements = 0;
-    ESL_num* elements = (ESL_num*)malloc((output_num+1)*sizeof(ESL_num));
-
+    ESL_num* elements = (ESL_num*)malloc((input_num+1)*sizeof(ESL_num));
     for (int i = 0; i < output_num; i++) {
 		elements[0] = biasses[i];
         num_of_elements = 1;
@@ -409,9 +411,7 @@ void fc_layer(ESL_num** weights, ESL_num* biasses, ESL_num* inputs, ESL_num* out
             elements[num_of_elements] =  multiplier(inputs[j], weights[i][j]);
             num_of_elements++;
 		}
-
         outputs[i] = adder_arr(elements, num_of_elements);
-
         switch (af_num) {
             case RELU_AF:
                 outputs[i] = relu_af(outputs[i]);
@@ -444,6 +444,7 @@ void read_fc_weights(ESL_num** weights, ESL_num* biasses, int input_num, int out
 }
 
 int fc_soft_max(ESL_num inputs[MAX_FEATURE_NUM], int feature_num){
+
     int max = 0;
     double features[MAX_FEATURE_NUM];
     for (int i = 0; i < feature_num; i++) {
@@ -457,6 +458,7 @@ int fc_soft_max(ESL_num inputs[MAX_FEATURE_NUM], int feature_num){
 }
 
 void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num*** outputs, int input_channel, int output_channel, int input_size, int kernel_size, int stride, int zero_pad, int af_num){
+
     int output_size = ((input_size + (2 * zero_pad) - kernel_size) / stride) + 1;
 
     int num_of_elements = 0;
@@ -500,7 +502,6 @@ void cnn_layer(ESL_num**** weights, ESL_num* biasses, ESL_num*** inputs, ESL_num
     		}
 		}
 	}
-
 }
 
 int A_l_B(ESL_num first, ESL_num second){
@@ -678,7 +679,7 @@ void LeNet(){
     int fc_input_num;
     int fc_output_num;
 
-    unsigned char input_labels[MAX_TEST_SAMPLES];
+    unsigned char input_label;
 
     ESL_num**** cnn_weights;
     cnn_weights = (ESL_num****)malloc(MAX_CHANNEL*sizeof(ESL_num***));
@@ -728,11 +729,19 @@ void LeNet(){
 
     int accuracy;
     int num_of_tests;
+    int start_point;
 
     accuracy = 0;
-    num_of_tests = 1;
+    start_point = 400;
+    num_of_tests = 100;
+
 
     reset_cal();
+    for (int itr = 0; itr < start_point; itr++) {
+        read_cnn_inputs(cnn_inputs, &input_label, cnn_input_channel, cnn_input_size, IMAGE_ADDRESS, LABEL_ADDRESS);
+    }
+
+    printf("Reached Start Point\n");
 
     for (int itr = 0; itr < num_of_tests; itr++) {
 
@@ -744,7 +753,7 @@ void LeNet(){
         cnn_stride = 1;
         cnn_zero_padd = 2;
         cnn_af_type = RELU_AF;
-        read_cnn_inputs(cnn_inputs, input_labels, cnn_input_channel, cnn_input_size, num_of_tests, IMAGE_ADDRESS, LABEL_ADDRESS);
+        read_cnn_inputs(cnn_inputs, &input_label, cnn_input_channel, cnn_input_size, IMAGE_ADDRESS, LABEL_ADDRESS);
         read_cnn_weights(cnn_weights, cnn_biasses, cnn_input_channel, cnn_output_channel, cnn_kernel_size, CONV1_WEIGHT_ADDRESS, CONV1_BIAS_ADDRESS);
         cnn_layer(cnn_weights, cnn_biasses, cnn_inputs, cnn_outputs, cnn_input_channel, cnn_output_channel, cnn_input_size, cnn_kernel_size, cnn_stride, cnn_zero_padd, cnn_af_type);
 
@@ -760,9 +769,9 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L12/CNN1_Weights");
-        print_cnn_features_file(cnn_inputs, cnn_input_channel, cnn_input_size, "./Network_outputs/L12/CNN1_Inputs");
-        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN1_Outputs");
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L16/CNN1_Weights");
+        print_cnn_features_file(cnn_inputs, cnn_input_channel, cnn_input_size, "./Network_outputs/L16/CNN1_Inputs");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L16/CNN1_Outputs");
 #endif
 
         cnn_output_channel = 6;
@@ -782,7 +791,7 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN1_Final_Outputs");
+        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L16/CNN1_Final_Outputs");
 #endif
 
 
@@ -810,8 +819,8 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L12/CNN2_Weights");
-        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN2_Outputs");
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L16/CNN2_Weights");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L16/CNN2_Outputs");
 #endif
 
         cnn_output_channel = 16;
@@ -831,7 +840,7 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN2_Final_Outputs");
+        print_cnn_features_file(cnn_inputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L16/CNN2_Final_Outputs");
 #endif
 
         cnn_output_channel = 120;
@@ -858,8 +867,8 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L12/CNN3_Weights");
-        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L12/CNN3_Outputs");
+        print_cnn_weights_file(cnn_weights, cnn_output_channel, cnn_input_channel, cnn_kernel_size, "./Network_outputs/L16/CNN3_Weights");
+        print_cnn_features_file(cnn_outputs, cnn_output_channel, cnn_output_size, "./Network_outputs/L16/CNN3_Outputs");
 #endif
 
 
@@ -884,19 +893,19 @@ void LeNet(){
 #endif
 
 #if(DEBUG_DEF_FILE == 1)
-        print_fc_weights_file(fc_weights, fc_input_num, fc_output_num, "./Network_outputs/L12/FC1_Weights");
-        print_fc_features_file(fc_outputs, fc_output_num, "./Network_outputs/L12/FC1_Outputs");
+        print_fc_weights_file(fc_weights, fc_input_num, fc_output_num, "./Network_outputs/L16/FC1_Weights");
+        print_fc_features_file(fc_outputs, fc_output_num, "./Network_outputs/L16/FC1_Outputs");
 #endif
 
         result_index = fc_soft_max(fc_outputs, fc_output_num);
-        expected_index = input_labels[itr];
+        expected_index = input_label;
 // #if(DEBUG_DEF == 1)
         printf("itr: %d, expected: %d, result: %d\n", itr, expected_index, result_index);
 // #endif
 
 #if(RESULT_SHOW == 1)
-        if(itr % 10 == 0){
-            printf("\r%d%% completed!", itr/10);
+        if(itr % (num_of_tests / 100) == 0){
+            printf("\r%d%% completed!", itr/(num_of_tests / 100));
             fflush(stdout);
         }
 #endif
