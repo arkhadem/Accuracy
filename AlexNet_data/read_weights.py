@@ -59,6 +59,11 @@ WEIGHT_NUM_LEN_LOG = {
 	"fc8" : 7
 }
 
+T_input_channel = 4
+T_output_channel = 4
+T_output_size = 8
+T_input_size_const = 40
+
 def sign(value):
 	if(value < 0):
 		return -1
@@ -161,10 +166,7 @@ def fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 	Min_weight = 1;
 	Max_abs_weight = 0;
 
-	T_input_channel = 4
-	T_output_channel = 4
-	T_output_size = 8
-	T_input_size_const = 40
+	
 
 	T_input_num = T_input_channel * T_output_size * T_output_size;
 	T_output_num = T_output_channel * T_output_size * T_output_size;
@@ -385,10 +387,7 @@ def cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 	Min_weight = 1;
 	Max_abs_weight = 0;
 
-	T_input_channel = 4
-	T_output_channel = 4
-	T_output_size = 8
-	T_input_size_const = 40
+	
 
 	num_of_abs_unique_weights = 0;
 	num_of_abs_unique_weights_log = 0;
