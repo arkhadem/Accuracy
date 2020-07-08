@@ -18,54 +18,94 @@ import sys
 WEIGHT_ABS_LEN = 1 + 7 # 1 bit sign + 7 bits for weight
 
 WEIGHT_DELTA_LEN = {
-	"conv1" : 1,
-	"conv2" : 1,
-	"conv3" : 1,
-	"conv4" : 1,
-	"conv5" : 1,
-	"fc6" : 1,
-	"fc7" : 1,
-	"fc8" : 1
+	"conv1_1_W" : 2,
+	"conv1_2_W" : 1,
+	"conv2_1_W" : 1,
+	"conv2_2_W" : 1,
+	"conv3_1_W" : 1,
+	"conv3_2_W" : 1,
+	"conv3_3_W" : 1,
+	"conv4_1_W" : 1,
+	"conv4_2_W" : 1,
+	"conv4_3_W" : 1,
+	"conv5_1_W" : 1,
+	"conv5_2_W" : 1,
+	"conv5_3_W" : 1,
+	"fc6_W" : 1,
+	"fc7_W" : 1,
+	"fc8_W" : 1
 }
 WEIGHT_DELTA_LEN_LOG = {
-	"conv1" : 1,
-	"conv2" : 1,
-	"conv3" : 1,
-	"conv4" : 1,
-	"conv5" : 1,
-	"fc6" : 1,
-	"fc7" : 1,
-	"fc8" : 1
+	"conv1_1_W" : 2,
+	"conv1_2_W" : 1,
+	"conv2_1_W" : 1,
+	"conv2_2_W" : 1,
+	"conv3_1_W" : 1,
+	"conv3_2_W" : 1,
+	"conv3_3_W" : 1,
+	"conv4_1_W" : 1,
+	"conv4_2_W" : 1,
+	"conv4_3_W" : 1,
+	"conv5_1_W" : 1,
+	"conv5_2_W" : 1,
+	"conv5_3_W" : 1,
+	"fc6_W" : 1,
+	"fc7_W" : 1,
+	"fc8_W" : 1
 }
 WEIGHT_NUM_LEN = {
-	"conv1" : 5,
-	"conv2" : 4,
-	"conv3" : 4,
-	"conv4" : 4,
-	"conv5" : 4,
-	"fc6" : 6,
-	"fc7" : 6,
-	"fc8" : 7
+	"conv1_1_W" : 2,
+	"conv1_2_W" : 3,
+	"conv2_1_W" : 3,
+	"conv2_2_W" : 3,
+	"conv3_1_W" : 3,
+	"conv3_2_W" : 4,
+	"conv3_3_W" : 4,
+	"conv4_1_W" : 4,
+	"conv4_2_W" : 4,
+	"conv4_3_W" : 4,
+	"conv5_1_W" : 4,
+	"conv5_2_W" : 4,
+	"conv5_3_W" : 4,
+	"fc6_W" : 2,
+	"fc7_W" : 3,
+	"fc8_W" : 5
 }
 WEIGHT_NUM_LEN_LOG = {
-	"conv1" : 5,
-	"conv2" : 4,
-	"conv3" : 4,
-	"conv4" : 4,
-	"conv5" : 4,
-	"fc6" : 6,
-	"fc7" : 6,
-	"fc8" : 7
+	"conv1_1_W" : 2,
+	"conv1_2_W" : 3,
+	"conv2_1_W" : 3,
+	"conv2_2_W" : 3,
+	"conv3_1_W" : 3,
+	"conv3_2_W" : 4,
+	"conv3_3_W" : 4,
+	"conv4_1_W" : 4,
+	"conv4_2_W" : 4,
+	"conv4_3_W" : 4,
+	"conv5_1_W" : 4,
+	"conv5_2_W" : 4,
+	"conv5_3_W" : 4,
+	"fc6_W" : 2,
+	"fc7_W" : 3,
+	"fc8_W" : 5
 }
 IDX_DELTA_LEN = {
-	"conv1" : 4,
-	"conv2" : 3,
-	"conv3" : 2,
-	"conv4" : 2,
-	"conv5" : 2,
-	"fc6" : 3,
-	"fc7" : 3,
-	"fc8" : 3
+	"conv1_1_W" : 3,
+	"conv1_2_W" : 2,
+	"conv2_1_W" : 2,
+	"conv2_2_W" : 2,
+	"conv3_1_W" : 2,
+	"conv3_2_W" : 2,
+	"conv3_3_W" : 2,
+	"conv4_1_W" : 2,
+	"conv4_2_W" : 2,
+	"conv4_3_W" : 2,
+	"conv5_1_W" : 2,
+	"conv5_2_W" : 2,
+	"conv5_3_W" : 2,
+	"fc6_W" : 4,
+	"fc7_W" : 3,
+	"fc8_W" : 2
 }
 
 Delta_vals = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -190,9 +230,9 @@ def write_enc_idx(val, len, file):
 def fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 	print("\n"),
 
-	transposed = np.moveaxis(net_data[layer_name][0], [-1], [0])
-	transposed_v1 = np.moveaxis(net_data_v1[layer_name][0], [-1], [0])
-	transposed_v2 = np.moveaxis(net_data_v2[layer_name][0], [-1], [0])
+	transposed = np.moveaxis(net_data[layer_name], [-1], [0])
+	transposed_v1 = np.moveaxis(net_data_v1[layer_name], [-1], [0])
+	transposed_v2 = np.moveaxis(net_data_v2[layer_name], [-1], [0])
 
 	o_c_num, i_c_num = shape(transposed)
 
@@ -229,11 +269,6 @@ def fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 
 	MSB_pos = 0
 	LSB_pos = -7
-
-	# bias manipulation
-	for oc in range(len(net_data[layer_name][1])):
-		net_data_v1[layer_name][1][oc] = quantization(net_data[layer_name][1][oc], MSB_pos, LSB_pos)
-		net_data_v2[layer_name][1][oc] = quantization(net_data[layer_name][1][oc], MSB_pos, LSB_pos)
 
 	weight_file = open(layer_name + "_weight_tiled.txt", "w")
 	index_1d_file = open(layer_name + "_index_1d_tiled.txt", "w")
@@ -329,7 +364,6 @@ def fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 							unique_weight_repetition_log.append(1)
 						else:
 							unique_weight_repetition_log[-1] = unique_weight_repetition_log[-1] + 1
-
 
 					Delta_val = to_integer_num(abs_weights[i] - last_unique_weight, MSB_pos, LSB_pos)
 
@@ -538,7 +572,14 @@ def fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 	for i in unique_weight_repetition_log:
 		num_of_weight_repetition_cells_log += int((float(i - 1) / float((2 ** WEIGHT_NUM_LEN_LOG[layer_name]) - 2)) + 1);
 
-	print("\n")
+	# min_memory_requirement = 100000000000
+	# min_memory_requirement_param = 0
+	# for i in range(0, len(IDX_DELTA_LEN_SIZE)):
+	# 	if(IDX_DELTA_LEN_SIZE[i] < min_memory_requirement):
+	# 		min_memory_requirement = IDX_DELTA_LEN_SIZE[i]
+	# 		min_memory_requirement_param = i + 1
+
+	# print("IDX_DELTA_LEN: " + str(min_memory_requirement_param))
 
 	writer.writerow([layer_name,
 		"V1",
@@ -579,13 +620,12 @@ def fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 		total_bubble_number])
 	print(layer_name + ": total V2: " + str((num_of_abs_unique_weights_log * (1 + WEIGHT_ABS_LEN)) + (num_of_delta_unique_weights_log * (1 + WEIGHT_DELTA_LEN_LOG[layer_name])) + (num_of_weight_repetition_cells_log * WEIGHT_NUM_LEN_LOG[layer_name])) + " WEIGHT_DELTA_LEN_LOG: " + str(WEIGHT_DELTA_LEN_LOG[layer_name]) + " WEIGHT_NUM_LEN_LOG: " + str(WEIGHT_NUM_LEN_LOG[layer_name]))
 
-
 def cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 	print("\n"),
 
-	transposed = np.moveaxis(net_data[layer_name][0], [-1, -2], [0, 1])
-	transposed_v1 = np.moveaxis(net_data_v1[layer_name][0], [-1, -2], [0, 1])
-	transposed_v2 = np.moveaxis(net_data_v2[layer_name][0], [-1, -2], [0, 1])
+	transposed = np.moveaxis(net_data[layer_name], [-1, -2], [0, 1])
+	transposed_v1 = np.moveaxis(net_data_v1[layer_name], [-1, -2], [0, 1])
+	transposed_v2 = np.moveaxis(net_data_v2[layer_name], [-1, -2], [0, 1])
 
 	Max_weight = -1;
 	Min_weight = 1;
@@ -614,11 +654,6 @@ def cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 
 	MSB_pos = 0
 	LSB_pos = -7
-
-	# bias manipulation
-	for oc in range(len(net_data[layer_name][1])):
-		net_data_v1[layer_name][1][oc] = quantization(net_data[layer_name][1][oc], MSB_pos, LSB_pos)
-		net_data_v2[layer_name][1][oc] = quantization(net_data[layer_name][1][oc], MSB_pos, LSB_pos)
 
 	weight_file = open(layer_name + "_weight_tiled.txt", "w")
 	index_1d_file = open(layer_name + "_index_1d_tiled.txt", "w")
@@ -975,7 +1010,7 @@ def cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 	# 		min_memory_requirement = IDX_DELTA_LEN_SIZE[i]
 	# 		min_memory_requirement_param = i + 1
 
-	print("\n")
+	# print("IDX_DELTA_LEN: " + str(min_memory_requirement_param))
 
 	writer.writerow([layer_name,
 		"V1",
@@ -1016,12 +1051,14 @@ def cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, layer_name):
 		total_bubble_number])
 	print(layer_name + ": total V2: " + str((num_of_abs_unique_weights_log * (1 + WEIGHT_ABS_LEN)) + (num_of_delta_unique_weights_log * (1 + WEIGHT_DELTA_LEN_LOG[layer_name])) + (num_of_weight_repetition_cells_log * WEIGHT_NUM_LEN_LOG[layer_name])) + " WEIGHT_DELTA_LEN_LOG: " + str(WEIGHT_DELTA_LEN_LOG[layer_name]) + " WEIGHT_NUM_LEN_LOG: " + str(WEIGHT_NUM_LEN_LOG[layer_name]))
 
+def bias_quantizer(net_data, net_data_v1, net_data_v2, layer_name):
+	for oc in range(len(net_data[layer_name])):
+		net_data_v1[layer_name][oc] = quantization(net_data[layer_name][oc], 0, -7)
+		net_data_v2[layer_name][oc] = quantization(net_data[layer_name][oc], 0, -7)
 
-
-net_data = load("bvlc_alexnet.npy", allow_pickle=True).item()
-net_data_v1 = load("bvlc_alexnet.npy", allow_pickle=True).item()
-net_data_v2 = load("bvlc_alexnet.npy", allow_pickle=True).item()
-
+net_data = np.load("vgg16_weights.npz")
+net_data_v1 = np.load("vgg16_weights.npz")
+net_data_v2 = np.load("vgg16_weights.npz")
 
 csv_file = open("alexnet_info.csv", 'w')
 writer = csv.writer(csv_file)
@@ -1044,14 +1081,39 @@ writer.writerow(["Layer name",
 	"min total idx memory storage",
 	"total number of bubbles"])
 
-cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv1')
-cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv2')
-cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv3')
-cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv4')
-cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv5')
-fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'fc6')
-fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'fc7')
-fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'fc8')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv1_1_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv1_2_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv2_1_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv2_2_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv3_1_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv3_2_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv3_3_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv4_1_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv4_2_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv4_3_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv5_1_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv5_2_W')
+cnn_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'conv5_3_W')
+fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'fc6_W')
+fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'fc7_W')
+fc_layer_extractor(writer, net_data, net_data_v1, net_data_v2, 'fc8_W')
+
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv1_1_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv1_2_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv2_1_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv2_2_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv3_1_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv3_2_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv3_3_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv4_1_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv4_2_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv4_3_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv5_1_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv5_2_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'conv5_3_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'fc6_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'fc7_b')
+bias_quantizer(net_data, net_data_v1, net_data_v2, 'fc8_b')
 
 np.save("bvlc_alexnet_v1.npy", net_data_v1)
 np.save("bvlc_alexnet_v2.npy", net_data_v2)
@@ -1062,5 +1124,3 @@ for i in range(0, len(Delta_vals) - 1):
 print("16 and more: " + str(Delta_vals[16]))
 
 print("finished")
-
-exit()
